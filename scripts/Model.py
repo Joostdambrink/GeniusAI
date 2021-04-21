@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Conv2D, Activation, UpSampling2D,PReLU,Input,Conv2DTranspose,GaussianNoise,Conv2DTranspose
+from tensorflow.keras.layers import Conv2D, Activation, UpSampling2D,PReLU,Input,Conv2DTranspose,GaussianNoise,Conv2DTranspose,Concatenate,LeakyReLU
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import Constant
 import pickle
@@ -15,7 +15,7 @@ from CustomSchedular import CustomLearningRateScheduler
 """
 def loadModel(model_path, compile = True):
     model = tf.keras.models.load_model('saved_model/my_model', compile = compile)
-    if(compile):
+    if(not compile):
         model.compile(optimizer = tf.keras.optimizers.SGD(learning_rate = 0.01,momentum=0.9), loss = L1Loss, metrics = ['acc'])
     return model
 
@@ -66,20 +66,26 @@ def Model():
     pr1 = PReLU(alpha_initializer="zeros",shared_axes=[1,2])(c1)
 
     resUnit = rb.ResBlock(pr1,num_of_units = 24,num_of_filters = 64)
-
-    c2 = Conv2D(64,4,**conv_args)(pr1 + resUnit)
+    
+    concat = Concatenate(axis=-1)([pr1,resUnit])
+    
+    c2 = Conv2D(64,4,**conv_args)(concat)
 
     c3 = Conv2D(64,4,**conv_args)(c2)
     pr2 = PReLU(alpha_initializer="zeros",shared_axes=[1,2])(c3)
     c4 = Conv2D(64,4,**conv_args)(pr2)
-    #resUnit2 = rb.ResBlock(c4,num_of_units=24, num_of_filters = 64)
 
     c5 = Conv2D(64,3,**conv_args)(c4)
     pr3 = PReLU(alpha_initializer="zeros",shared_axes=[1,2])(c5)
-    up1 = UpSampling2D(size = (4,4),interpolation = "nearest")(pr3)
+
+    up1 = UpSampling2D(size = (2,2),interpolation = "nearest")(pr3)
     c6 = Conv2D(64,2,**conv_args)(up1)
-    c7 = Conv2D(64,2,**conv_args)(c6)
-    c8 = Conv2D(64,2,**conv_args)(c7)
+    leaky = LeakyReLU()(c6)
+    up2 = UpSampling2D(size = (2,2), interpolation="nearest")(leaky)
+    c7 = Conv2D(64,2,**conv_args)(up2)
+    leaky2 = LeakyReLU()(c7)
+
+    c8 = Conv2D(64,2,**conv_args)(leaky2)
     c9 = Conv2D(64,2,**conv_args)(c8)
     pr4 = PReLU(alpha_initializer="zeros",shared_axes=[1,2])(c9)
     c10 = Conv2D(3,2,**conv_args)(pr4)
@@ -113,16 +119,17 @@ def L1Loss(y_true,y_pred):
         build a model and fit the data to it.
         saves the model after training is finished.
 """
-def TrainModel(training_lr_path =r"Data\train_lr.pickle" , trainin_hr_path = r"Data\train_hr.pickle"):
+def TrainModel(training_lr_path = r"Data\train_lr.pickle" , training_hr_path = r"Data\train_hr.pickle", num_of_epochs = 100):
     training_lr = pickle.load(open(training_lr_path,"rb")).astype(np.float32)
     training_hr = pickle.load(open(training_hr_path,"rb")).astype(np.float32)
     training_lr = training_lr/255
     training_hr = training_hr/255
     model = Model()
     model.summary()
-    model.compile(optimizer = tf.keras.optimizers.SGD(learning_rate = 0.001,momentum=0.9), loss = L1Loss)
-    model.fit(x = training_lr, y = training_hr, epochs=100, batch_size=1,callbacks=[CustomLearningRateScheduler(schedular)])
+    model.compile(optimizer = tf.keras.optimizers.SGD(learning_rate = 0.01,momentum=0.9), loss = L1Loss)
+    model.fit(x = training_lr, y = training_hr, epochs= num_of_epochs, batch_size=1,callbacks=[CustomLearningRateScheduler(schedular)])
 
     model.save('saved_model/my_model')
-#loadModel()
-TrainModel()
+
+PredictAndShowImage(loadModel('saved_model/my_model', compile = False), data_path=r"Data\train_lr.pickle")
+#TrainModel(num_of_epochs = 100)
