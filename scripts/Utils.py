@@ -35,7 +35,29 @@ class Utils:
         - a tuple with both arrays (new_array_lr, new_array_hr)
     """
     def ImageAugmentations(self,images_lr, images_hr):
-        return
+        lowres = images_lr
+        highres = images_hr
+        for i in range(len(images_lr)):
+            print("low res augmentation " + str(i) + "/" + str(len(images_lr)))
+            rot90_lr = np.expand_dims(cv2.rotate(images_lr[i],cv2.ROTATE_90_CLOCKWISE), axis = 0)
+            rot180_lr = cv2.rotate(images_lr[i],cv2.ROTATE_180)
+            rot270_lr = np.expand_dims(cv2.rotate(rot180_lr, cv2.ROTATE_90_CLOCKWISE),axis = 0)
+            rot180_lr = np.expand_dims(rot180_lr, axis = 0)
+
+            lowres = np.append(lowres, rot90_lr, axis = 0)
+            lowres = np.append(lowres, rot180_lr, axis = 0)
+            lowres = np.append(lowres, rot270_lr,axis = 0)
+
+            print("high res augmentation " + str(i) + "/" + str(len(images_lr)))
+
+            rot90_hr = np.expand_dims(cv2.rotate(images_hr[i],cv2.ROTATE_90_CLOCKWISE), axis = 0)
+            rot180_hr = cv2.rotate(images_hr[i],cv2.ROTATE_180)
+            rot270_hr = np.expand_dims(cv2.rotate(rot180_hr, cv2.ROTATE_90_CLOCKWISE), axis = 0)
+            rot180_hr = np.expand_dims(rot180_hr, axis = 0)
+            highres = np.append(highres, rot90_hr, axis = 0)
+            highres = np.append(highres, rot180_hr, axis = 0)
+            highres = np.append(highres, rot270_hr,axis = 0)
+        return lowres, highres
 
     """
         SaveDataToFile:
@@ -59,16 +81,30 @@ class Utils:
         self.train_hr = self.ReadImages(self.train_hr_path)[:80]
         self.test_lr = self.ReadImages(self.test_lr_path)[80::]
         self.test_hr = self.ReadImages(self.test_hr_path)[80::]
-        self.SaveDataToFile(self.train_lr,"D:\\HBO\\MinorAi\\GeniusAI\\Data\\train_lr.pickle")
-        self.SaveDataToFile(self.train_hr,"D:\\HBO\\MinorAi\\GeniusAI\\Data\\train_hr.pickle")
-        self.SaveDataToFile(self.test_lr,"D:\\HBO\\MinorAi\\GeniusAI\\Data\\test_lr.pickle")
-        self.SaveDataToFile(self.test_hr,"D:\\HBO\\MinorAi\\GeniusAI\\Data\\test_hr.pickle")
+        # self.SaveDataToFile(self.train_lr,"D:\\HBO\\MinorAi\\GeniusAI\\Data\\train_lr.pickle")
+        # self.SaveDataToFile(self.train_hr,"D:\\HBO\\MinorAi\\GeniusAI\\Data\\train_hr.pickle")
+        # self.SaveDataToFile(self.test_lr,"D:\\HBO\\MinorAi\\GeniusAI\\Data\\test_lr.pickle")
+        # self.SaveDataToFile(self.test_hr,"D:\\HBO\\MinorAi\\GeniusAI\\Data\\test_hr.pickle")
 
         # for i in range(1,9):
         #     self.SaveDataToFile(self.train_lr[(i-1) * 100 : i * 100], "D:\\HBO\\MinorAi\\GeniusAI\\Data\\train_lr_div2k" + "_" + str(i) + ".pickle")
         #     self.SaveDataToFile(self.train_hr[(i-1) * 100 : i * 100], "D:\\HBO\\MinorAi\\GeniusAI\\Data\\train_hr_div2k" + "_" + str(i) + ".pickle")
         # self.SaveDataToFile(self.test_lr, "D:\\HBO\\MinorAi\\GeniusAI\\Data\\test_lr_div2k.pickle")
         # self.SaveDataToFile(self.test_hr, "D:\\HBO\\MinorAi\\GeniusAI\\Data\\test_hr_div2k.pickle")
+    
+    def SaveAugmentedImages(self,images_lr_path,images_hr_path):
+        print("loading images from file....")
+        self.train_lr = self.LoadDataFromFile(images_lr_path)
+        self.train_hr = self.LoadDataFromFile(images_hr_path)
+        print("size before augmentation: " + str(len(self.train_lr)))
+        print("starting images augmentation...")
+        self.train_lr,self.train_hr = self.ImageAugmentations(self.train_lr,self.train_hr)
+
+        print("size after augmentation: " + str(len(self.train_lr)))
+
+        print("saving results")
+        self.SaveDataToFile(self.train_lr,"D:\\HBO\\MinorAi\\GeniusAI\\Data\\train_lr.pickle")
+        self.SaveDataToFile(self.train_hr,"D:\\HBO\\MinorAi\\GeniusAI\\Data\\train_hr.pickle")
 
 test = Utils()
-test.Run()
+# test.Run()
