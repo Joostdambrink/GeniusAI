@@ -28,6 +28,32 @@ class Utils:
         return np.array(images)
 
     """
+        GetCroppedImages
+            Gets a input of numpy array images (low-res and high-res)
+            Crops the images into multiple smaller images and returns these.
+    """
+    def GetCroppedImages(self,low_res_array,high_res_array):
+        lowpix = 96
+        highpix = 384
+        low_res_cropped = []
+        high_res_cropped = []
+        for i in low_res_array:
+            for a in range(0,i.shape[0],lowpix):
+                for b in range(0,i.shape[1],lowpix):
+                    image = i[a:a+lowpix,b:b+lowpix]
+                    if image.shape == (lowpix,lowpix,3): 
+                        low_res_cropped.append(image)
+
+        for i in high_res_array:
+            for a in range(0,i.shape[0],highpix):
+                for b in range(0,i.shape[1],highpix):
+                    image = i[a:a+highpix,b:b+highpix]
+                    if image.shape == (highpix,highpix,3):
+                        high_res_cropped.append(image)
+
+        return (np.array(low_res_cropped),np.array(high_res_cropped))
+
+    """
     this function takes two image pandas arrays (one low res and the other high res) and does the following transformations:
         - rotations 90,180,270
         - each rotated image gets added to the array.
