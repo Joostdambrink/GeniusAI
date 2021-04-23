@@ -2,6 +2,7 @@ import os
 import cv2
 import pickle
 import numpy as np
+import h5py
 class Utils:
     def __init__(self,train_lr_path = r"D:\HBO\MinorAi\data\LR",train_hr_path = r"D:\HBO\MinorAi\data\HR",test_lr_path = r"D:\HBO\MinorAi\data\LR",test_hr_path = r"D:\HBO\MinorAi\data\HR"):
         self.train_lr_path = train_lr_path
@@ -24,7 +25,6 @@ class Utils:
             img = cv2.imread(os.path.join(path,filename))
             if img is not None:
                 images.append(np.array(img))
-        
         return np.array(images)
 
     """
@@ -60,30 +60,11 @@ class Utils:
     returns:
         - a tuple with both arrays (new_array_lr, new_array_hr)
     """
-    def ImageAugmentations(self,images_lr, images_hr):
-        lowres = images_lr
-        highres = images_hr
-        for i in range(len(images_lr)):
-            print("low res augmentation " + str(i) + "/" + str(len(images_lr)))
-            rot90_lr = np.expand_dims(cv2.rotate(images_lr[i],cv2.ROTATE_90_CLOCKWISE), axis = 0)
-            rot180_lr = cv2.rotate(images_lr[i],cv2.ROTATE_180)
-            rot270_lr = np.expand_dims(cv2.rotate(rot180_lr, cv2.ROTATE_90_CLOCKWISE),axis = 0)
-            rot180_lr = np.expand_dims(rot180_lr, axis = 0)
+    def ImageAugmentations(self,images, rotation = cv2.ROTATE_90_CLOCKWISE):
+        for i in range(len(images)):
+            self.printProgressBar(i,len(images),prefix="Augmenting", suffix = "Complete")
+            yield cv2.rotate(images[i],rotation)
 
-            lowres = np.append(lowres, rot90_lr, axis = 0)
-            lowres = np.append(lowres, rot180_lr, axis = 0)
-            lowres = np.append(lowres, rot270_lr,axis = 0)
-
-            print("high res augmentation " + str(i) + "/" + str(len(images_lr)))
-
-            rot90_hr = np.expand_dims(cv2.rotate(images_hr[i],cv2.ROTATE_90_CLOCKWISE), axis = 0)
-            rot180_hr = cv2.rotate(images_hr[i],cv2.ROTATE_180)
-            rot270_hr = np.expand_dims(cv2.rotate(rot180_hr, cv2.ROTATE_90_CLOCKWISE), axis = 0)
-            rot180_hr = np.expand_dims(rot180_hr, axis = 0)
-            highres = np.append(highres, rot90_hr, axis = 0)
-            highres = np.append(highres, rot180_hr, axis = 0)
-            highres = np.append(highres, rot270_hr,axis = 0)
-        return lowres, highres
 
     """
         SaveDataToFile:
@@ -102,35 +83,58 @@ class Utils:
     def LoadDataFromFile(self,path):
         return pickle.load( open( path, "rb" ) )
 
+    def SaveAsH5File(self,data, directory, dtype = h5py.h5t.STD_I32LE):
+        file = h5py.File(directory, "w")
+        dataset = file.create_dataset("images", np.shape(data), dtype, data= data)
+        file.close()
+
+    def LoadH5File(self,path):
+        file = h5py.File(path, "r+")
+        return np.array(file["images"]).astype(np.float32)
+
     def Run(self):
-        self.train_lr = self.ReadImages(self.train_lr_path)[:80]
-        self.train_hr = self.ReadImages(self.train_hr_path)[:80]
-        self.test_lr = self.ReadImages(self.test_lr_path)[80::]
-        self.test_hr = self.ReadImages(self.test_hr_path)[80::]
-        # self.SaveDataToFile(self.train_lr,"D:\\HBO\\MinorAi\\GeniusAI\\Data\\train_lr.pickle")
-        # self.SaveDataToFile(self.train_hr,"D:\\HBO\\MinorAi\\GeniusAI\\Data\\train_hr.pickle")
-        # self.SaveDataToFile(self.test_lr,"D:\\HBO\\MinorAi\\GeniusAI\\Data\\test_lr.pickle")
-        # self.SaveDataToFile(self.test_hr,"D:\\HBO\\MinorAi\\GeniusAI\\Data\\test_hr.pickle")
+        self.train_lr = self.ReadImages(self.train_lr_path)
+        self.train_hr = self.ReadImages(self.train_hr_path)
+        # self.test_lr = self.ReadImages(self.test_lr_path)
+        # self.test_hr = self.ReadImages(self.test_hr_path)
+        self.train_lr, self.train_hr = self.GetCroppedImages(self.train_lr, self.train_hr)
+        self.SaveDataToFile(self.train_lr, r"D:\HBO\MinorAi\PickleFiles\train_lr.pickle")
+        self.SaveDataToFile(self.train_hr, r"D:\HBO\MinorAi\PickleFiles\train_hr.pickle")
 
-        # for i in range(1,9):
-        #     self.SaveDataToFile(self.train_lr[(i-1) * 100 : i * 100], "D:\\HBO\\MinorAi\\GeniusAI\\Data\\train_lr_div2k" + "_" + str(i) + ".pickle")
-        #     self.SaveDataToFile(self.train_hr[(i-1) * 100 : i * 100], "D:\\HBO\\MinorAi\\GeniusAI\\Data\\train_hr_div2k" + "_" + str(i) + ".pickle")
-        # self.SaveDataToFile(self.test_lr, "D:\\HBO\\MinorAi\\GeniusAI\\Data\\test_lr_div2k.pickle")
-        # self.SaveDataToFile(self.test_hr, "D:\\HBO\\MinorAi\\GeniusAI\\Data\\test_hr_div2k.pickle")
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    def printProgressBar (self,iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+        percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+        filledLength = int(length * iteration // total)
+        bar = fill * filledLength + '-' * (length - filledLength)
+        print(f'\r{prefix} |{bar}| {percent}% {suffix}', end = printEnd)
+        # Print New Line on Complete
+        if iteration == total: 
+            print()
     
-    def SaveAugmentedImages(self,images_lr_path,images_hr_path):
+    def SaveAugmentedImages(self,images_path, save_path):
         print("loading images from file....")
-        self.train_lr = self.LoadDataFromFile(images_lr_path)
-        self.train_hr = self.LoadDataFromFile(images_hr_path)
-        print("size before augmentation: " + str(len(self.train_lr)))
-        print("starting images augmentation...")
-        self.train_lr,self.train_hr = self.ImageAugmentations(self.train_lr,self.train_hr)
+        images = self.LoadDataFromFile(images_path)
 
-        print("size after augmentation: " + str(len(self.train_lr)))
+        print("starting lr images augmentation...")
+        images_rot_90_lr = []
+        for item in self.ImageAugmentations(images):
+            images_rot_90_lr.append(item)
 
-        print("saving results")
-        self.SaveDataToFile(self.train_lr,"D:\\HBO\\MinorAi\\GeniusAI\\Data\\train_lr.pickle")
-        self.SaveDataToFile(self.train_hr,"D:\\HBO\\MinorAi\\GeniusAI\\Data\\train_hr.pickle")
+        return np.array(images_rot_90_lr)
 
-test = Utils()
-# test.Run()
+test = Utils(train_lr_path=r"D:\HBO\MinorAi\Div2kx4\train_lr", train_hr_path=r"D:\HBO\MinorAi\Div2kx4\train_hr", test_lr_path=r"D:\HBO\MinorAi\Div2kx4\valid_lr", test_hr_path = r"D:\HBO\MinorAi\Div2kx4\valid_lr")
+#test.SaveAugmentedImages(r"D:\HBO\MinorAi\PickleFiles\train_hr.pickle", r"D:\HBO\MinorAi\PickleFiles\train_hr_rot_90.pickle")
+#test.SaveAsH5File(test.LoadDataFromFile(r"D:\HBO\MinorAi\PickleFiles\train_hr.pickle"),r"D:\HBO\MinorAi\PickleFiles\train_hr.h5")
+#test.SaveAsH5File(test.LoadDataFromFile(r"D:\HBO\MinorAi\PickleFiles\train_lr.pickle"),r"D:\HBO\MinorAi\PickleFiles\train_lr.h5")
+test.LoadH5File(r"D:\HBO\MinorAi\PickleFiles\train_hr.h5")

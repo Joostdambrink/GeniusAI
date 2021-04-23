@@ -131,5 +131,5 @@ def TrainModel(training_lr_path = r"Data\train_lr.pickle" , training_hr_path = r
 
     model.save('saved_model/my_model')
 
-PredictAndShowImage(loadModel('saved_model/my_model', compile = False), data_path=r"Data\train_lr.pickle")
-#TrainModel(num_of_epochs = 100)
+#PredictAndShowImage(loadModel('saved_model/my_model', compile = False), data_path=r"Data\train_lr.pickle")
+TrainModel(num_of_epochs = 1, training_hr_path=r"D:\HBO\MinorAi\PickleFiles\train_hr.pickle", training_lr_path=r"D:\HBO\MinorAi\PickleFiles\train_lr.pickle")
