@@ -10,6 +10,7 @@ import cv2
 from ResidualBlock import ResidualBlock
 from CustomSchedular import CustomLearningRateScheduler
 from Utils import Utils
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 class SuperResModel:
     def __init__(self):
@@ -128,21 +129,21 @@ class SuperResModel:
     """
     def TrainModel(self,training_lr_path , training_hr_path, num_of_epochs = 100):
         tensorboard = TensorBoard(log_dir = "logs/{}".format(time()))
-        early_stop = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=3)
+        early_stop = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=5)
 
         training_lr = self.Utils.LoadH5File(training_lr_path)
         training_hr = self.Utils.LoadH5File(training_hr_path)
         training_lr = training_lr/255
         training_hr = training_hr/255
-        model = Model()
+
+        model = self.Model()
         model.summary()
-        model.compile(optimizer = tf.keras.optimizers.SGD(learning_rate = 0.01,momentum=0.9), loss = L1Loss)
-        model.fit(x = training_lr, y = training_hr, epochs= num_of_epochs, batch_size=1,callbacks=[CustomLearningRateScheduler(schedular), early_stop, tensorboard])
+        model.compile(optimizer = tf.keras.optimizers.SGD(learning_rate = 0.01,momentum=0.9), loss = self.L1Loss)
+        model.fit_generator(training_lr, training_hr, batch_size = 10, epochs= num_of_epochs ,callbacks=[CustomLearningRateScheduler(self.schedular), early_stop, tensorboard])
 
         model.save('saved_model/my_model')
 
-if __name__ == '__main__':
-    model = SuperResModel()
-    #model.PredictAndShowImage(loadModel('saved_model/my_model', compile = False), data_path=r"Data\train_lr.pickle")
+model = SuperResModel()
+#model.PredictAndShowImage(loadModel('saved_model/my_model', compile = False), data_path=r"Data\train_lr.pickle")
 
-    model.TrainModel( r"D:\HBO\MinorAi\PickleFiles\train_lr.h5", r"D:\HBO\MinorAi\PickleFiles\train_hr.h5", num_of_epochs = 1)
+model.TrainModel( r"D:\HBO\MinorAi\PickleFiles\train_lr.h5", r"D:\HBO\MinorAi\PickleFiles\train_hr.h5", num_of_epochs = 1)

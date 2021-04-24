@@ -127,10 +127,19 @@ class Utils:
 
         return np.array(images_rot_90_lr)
 
+    def SaveInBatches(self, data, directory,prefix = "images", suffix = ".h5", num_of_splits = 5):
+        step_size = len(data) // num_of_splits
+        current_split = 1
+        for i in range(0,len(data), step_size):
+            data_sliced = data[i : i+step_size]
+            self.SaveAsH5File(data_sliced, directory + "\\" + prefix + "_" + str(current_split) + suffix )
+            current_split += 1
+
 
 if __name__ == "__main__":
     test = Utils()
     #test.SaveAugmentedImages(r"D:\HBO\MinorAi\PickleFiles\train_hr.pickle", r"D:\HBO\MinorAi\PickleFiles\train_hr_rot_90.pickle")
-    #test.SaveAsH5File(test.LoadDataFromFile(r"D:\HBO\MinorAi\PickleFiles\train_hr.pickle"),r"D:\HBO\MinorAi\PickleFiles\train_hr.h5")
-    test.SaveAsH5File(test.LoadDataFromFile(r"D:\HBO\MinorAi\PickleFiles\train_hr.pickle"),r"D:\HBO\MinorAi\PickleFiles\train_hr.h5")
+    x = test.LoadH5File(r"D:\HBO\MinorAi\PickleFiles\train_hr.h5")/255
+    # y = test.LoadDataFromFile(r"D:\HBO\MinorAi\PickleFiles\train_hr.pickle")/255
+    test.SaveInBatches(x, r"D:\HBO\MinorAi\PickleFiles", prefix="Y_train")
     #test.LoadH5File(r"D:\HBO\MinorAi\PickleFiles\train_hr.h5")
