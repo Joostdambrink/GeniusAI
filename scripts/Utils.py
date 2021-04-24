@@ -4,11 +4,7 @@ import pickle
 import numpy as np
 import h5py
 class Utils:
-    def __init__(self,train_lr_path = r"D:\HBO\MinorAi\data\LR",train_hr_path = r"D:\HBO\MinorAi\data\HR",test_lr_path = r"D:\HBO\MinorAi\data\LR",test_hr_path = r"D:\HBO\MinorAi\data\HR"):
-        self.train_lr_path = train_lr_path
-        self.train_hr_path = train_hr_path
-        self.test_lr_path = test_lr_path
-        self.test_hr_path = test_hr_path
+    def __init__(self):
         self.train_lr = []
         self.train_hr = []
         self.test_lr = []
@@ -93,13 +89,11 @@ class Utils:
         return np.array(file["images"]).astype(np.float32)
 
     def Run(self):
-        self.train_lr = self.ReadImages(self.train_lr_path)
-        self.train_hr = self.ReadImages(self.train_hr_path)
-        # self.test_lr = self.ReadImages(self.test_lr_path)
-        # self.test_hr = self.ReadImages(self.test_hr_path)
+        self.train_lr = self.ReadImages(r"D:\HBO\MinorAi\Div2kx4\train_lr")
+        self.train_hr = self.ReadImages(r"D:\HBO\MinorAi\Div2kx4\train_hr")
         self.train_lr, self.train_hr = self.GetCroppedImages(self.train_lr, self.train_hr)
-        self.SaveDataToFile(self.train_lr, r"D:\HBO\MinorAi\PickleFiles\train_lr.pickle")
-        self.SaveDataToFile(self.train_hr, r"D:\HBO\MinorAi\PickleFiles\train_hr.pickle")
+        self.SaveAsH5File(self.train_lr,r"D:\HBO\MinorAi\PickleFiles\train_lr.h5")
+        self.SaveAsH5File(self.train_hr,r"D:\HBO\MinorAi\PickleFiles\train_hr.h5")
 
     """
     Call in a loop to create terminal progress bar
@@ -133,8 +127,10 @@ class Utils:
 
         return np.array(images_rot_90_lr)
 
-test = Utils(train_lr_path=r"D:\HBO\MinorAi\Div2kx4\train_lr", train_hr_path=r"D:\HBO\MinorAi\Div2kx4\train_hr", test_lr_path=r"D:\HBO\MinorAi\Div2kx4\valid_lr", test_hr_path = r"D:\HBO\MinorAi\Div2kx4\valid_lr")
-#test.SaveAugmentedImages(r"D:\HBO\MinorAi\PickleFiles\train_hr.pickle", r"D:\HBO\MinorAi\PickleFiles\train_hr_rot_90.pickle")
-#test.SaveAsH5File(test.LoadDataFromFile(r"D:\HBO\MinorAi\PickleFiles\train_hr.pickle"),r"D:\HBO\MinorAi\PickleFiles\train_hr.h5")
-#test.SaveAsH5File(test.LoadDataFromFile(r"D:\HBO\MinorAi\PickleFiles\train_lr.pickle"),r"D:\HBO\MinorAi\PickleFiles\train_lr.h5")
-test.LoadH5File(r"D:\HBO\MinorAi\PickleFiles\train_hr.h5")
+
+if __name__ == "__main__":
+    test = Utils()
+    #test.SaveAugmentedImages(r"D:\HBO\MinorAi\PickleFiles\train_hr.pickle", r"D:\HBO\MinorAi\PickleFiles\train_hr_rot_90.pickle")
+    #test.SaveAsH5File(test.LoadDataFromFile(r"D:\HBO\MinorAi\PickleFiles\train_hr.pickle"),r"D:\HBO\MinorAi\PickleFiles\train_hr.h5")
+    test.SaveAsH5File(test.LoadDataFromFile(r"D:\HBO\MinorAi\PickleFiles\train_hr.pickle"),r"D:\HBO\MinorAi\PickleFiles\train_hr.h5")
+    #test.LoadH5File(r"D:\HBO\MinorAi\PickleFiles\train_hr.h5")
