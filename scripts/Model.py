@@ -128,9 +128,15 @@ class SuperResModel:
             saves the model after training is finished.
     """
     def TrainModel(self,training_lr_path , training_hr_path, num_of_epochs = 100):
+        checkpoint_filepath = 'saved_model/my_model'
         tensorboard = TensorBoard(log_dir = "logs/{}".format(time()))
         early_stop = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=5)
-
+        model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
+        filepath=checkpoint_filepath,
+        save_weights_only=False,
+        monitor='loss',
+        mode='min',
+        save_best_only=False)
         training_lr = self.Utils.LoadH5File(training_lr_path)
         training_hr = self.Utils.LoadH5File(training_hr_path)
         training_lr = training_lr/255
@@ -139,9 +145,9 @@ class SuperResModel:
         model = self.Model()
         model.summary()
         model.compile(optimizer = tf.keras.optimizers.SGD(learning_rate = 0.01,momentum=0.9), loss = self.L1Loss)
-        model.fit_generator(training_lr, training_hr, batch_size = 10, epochs= num_of_epochs ,callbacks=[CustomLearningRateScheduler(self.schedular), early_stop, tensorboard])
+        model.fit(training_lr, training_hr, batch_size = 1, epochs= num_of_epochs ,callbacks=[CustomLearningRateScheduler(self.schedular), early_stop, tensorboard, model_checkpoint_callback])
 
-        model.save('saved_model/my_model')
+        model.save(checkpoint_filepath)
 
 model = SuperResModel()
 #model.PredictAndShowImage(loadModel('saved_model/my_model', compile = False), data_path=r"Data\train_lr.pickle")
