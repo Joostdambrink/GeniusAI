@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Conv2D, Activation, UpSampling2D,PReLU,Input,Conv2DTranspose,GaussianNoise,Conv2DTranspose,Concatenate,LeakyReLU
+from tensorflow.keras.layers import Conv2D, Activation, UpSampling2D,PReLU,Input,Conv2DTranspose,GaussianNoise,Conv2DTranspose,Concatenate,LeakyReLU,Add
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import Constant
 from time import time
@@ -22,9 +22,9 @@ class SuperResModel:
             loads and returns the model
     """
     def loadModel(self,model_path, compile = True):
-        model = tf.keras.models.load_model('saved_model/my_model', compile = compile)
+        model = tf.keras.models.load_model(model_path, compile = compile)
         if(not compile):
-            model.compile(optimizer = tf.keras.optimizers.SGD(learning_rate = 0.01,momentum=0.9), loss = L1Loss, metrics = ['acc'])
+            model.compile(optimizer = tf.keras.optimizers.SGD(learning_rate = 0.1,momentum=0.9), loss = self.L1Loss)
         return model
 
 
@@ -35,12 +35,13 @@ class SuperResModel:
             shows the prediction in a window using cv2
     """
     def PredictAndShowImage(self, model, data_path):
-        test_lr = pickle.load(open(data_path,"rb"))[:2]
+        test_lr = self.Utils.LoadH5File(data_path)[:2]
         test_lr = test_lr.reshape(-1,96,96,3)
         test_lr = test_lr/255
 
         pred = model.predict(test_lr)
-        cv2.imshow("image",pred[0])
+        cv2.imshow("prediction",pred[0])
+        cv2.imshow("input",test_lr[0])
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
@@ -75,7 +76,7 @@ class SuperResModel:
 
         resUnit = rb.ResBlock(pr1,num_of_units = 24,num_of_filters = 64)
         
-        concat = Concatenate(axis=-1)([pr1,resUnit])
+        concat = Add()([pr1,resUnit])
         
         c2 = Conv2D(64,4,**conv_args)(concat)
 
@@ -128,8 +129,8 @@ class SuperResModel:
             saves the model after training is finished.
     """
     def TrainModel(self,training_lr_path , training_hr_path, num_of_epochs = 100):
-        checkpoint_filepath = 'saved_model/my_model'
-        tensorboard = TensorBoard(log_dir = "logs/{}".format(time()))
+        checkpoint_filepath = 'super_res.h5'
+        tensorboard = TensorBoard(log_dir = "logs/latest_model")
         early_stop = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=5)
         model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_filepath,
@@ -137,19 +138,17 @@ class SuperResModel:
         monitor='loss',
         mode='min',
         save_best_only=False)
-        training_lr = self.Utils.LoadH5File(training_lr_path)
-        training_hr = self.Utils.LoadH5File(training_hr_path)
-        training_lr = training_lr/255
-        training_hr = training_hr/255
 
         model = self.Model()
         model.summary()
-        model.compile(optimizer = tf.keras.optimizers.SGD(learning_rate = 0.01,momentum=0.9), loss = self.L1Loss)
-        model.fit(training_lr, training_hr, batch_size = 1, epochs= num_of_epochs ,callbacks=[CustomLearningRateScheduler(self.schedular), early_stop, tensorboard, model_checkpoint_callback])
-
-        model.save(checkpoint_filepath)
+        model.compile(optimizer = tf.keras.optimizers.SGD(learning_rate = 0.1,momentum=0.9), loss = self.L1Loss)
+        model.fit(self.Utils.LoadH5File(training_lr_path)/255,
+        self.Utils.LoadH5File(training_hr_path)/255,
+        batch_size = 1,
+        epochs= num_of_epochs,
+        callbacks=[CustomLearningRateScheduler(self.schedular), early_stop, tensorboard, model_checkpoint_callback])
 
 model = SuperResModel()
-#model.PredictAndShowImage(loadModel('saved_model/my_model', compile = False), data_path=r"Data\train_lr.pickle")
+#model.PredictAndShowImage(model.loadModel('saved_model/my_model', compile = False), data_path=r"D:\HBO\MinorAi\PickleFiles\X_train_2.h5")
 
-model.TrainModel( r"D:\HBO\MinorAi\PickleFiles\train_lr.h5", r"D:\HBO\MinorAi\PickleFiles\train_hr.h5", num_of_epochs = 1)
+#model.TrainModel( r"D:\HBO\MinorAi\PickleFiles\X_train_1.h5", r"D:\HBO\MinorAi\PickleFiles\y_train_1.h5", num_of_epochs = 1)
