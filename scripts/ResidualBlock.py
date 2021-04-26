@@ -6,12 +6,18 @@ class ResidualBlock:
     def __init__(self):
         return
 
-    """
-        Residual block:
-            it takes the input data in the form of an array/tensor, number of residual units, and number of filters per convolutional layer
-            returns the result of all the residual units in the form of a convolutional layer.
+    """Creates residual block from n number of residual units
+
+    Args:
+        input_data (numpy array / tf tensor) : input data of the first unit
+        num_of_units (Int, optional) : number of residual units
+        num_of_filters : number of filters per Conv2D layer
+
+    Returns:
+        (keras layer) : the last layer of the residual block
     """
     def ResBlock(self,input_data,num_of_units = 3, num_of_filters = 64):
+
         resunit = []
         for i in range(num_of_units):
             if i == 0:
@@ -20,13 +26,19 @@ class ResidualBlock:
                 resUnit = self.ResidualUnit(resUnit, num_of_filters)
         return resUnit
 
+
+    """Residual unit that consists of 2 Conv2D layers and one PReLU layer
+    
+    Args:
+        input_data (numpy array / tf tensor) : input data of this unit
+        num_of_filters (Int) : number of filters per Conv2D layer
+    
+    Returns:
+        (keras layer) : result of the last layer in the unit
     """
-        Residual unit:
-            a function that takes in input data as an array/tensor and number of filters for each convolution.
-            returns the result of the residual block as a convolutional layer.
-    """
-    def ResidualUnit(self,inputdata, num_of_filters):
-        x = Conv2D(num_of_filters,(2,2),padding="same")(inputdata)
+    def ResidualUnit(self,input_data, num_of_filters):
+
+        x = Conv2D(num_of_filters,(2,2),padding="same")(input_data)
         x = PReLU(alpha_initializer=Constant(value=0.25),shared_axes=[1,2])(x)
         x = Conv2D(num_of_filters,(2,2),padding = "same")(x)
         return x

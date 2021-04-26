@@ -16,10 +16,15 @@ class SuperResModel:
     def __init__(self):
         self.Utils = Utils()
 
-    """
-        LoadModel:
-            takes in the path of a saved model and a boolean value for compile (use compile = False if the model uses a custom loss function).
-            loads and returns the model
+
+    """Loads keras model from path
+    
+    Args:
+        model_path (str) : path of model to load
+        compile (bool, optional) : compile model automatically True or False. defaults to True
+    
+    Returns:
+        (keras model) : the loaded model.
     """
     def loadModel(self,model_path, compile = True):
         model = tf.keras.models.load_model(model_path, compile = compile)
@@ -28,22 +33,27 @@ class SuperResModel:
         return model
 
 
-    """
-        PredictAndShowImage:
-            takes in a ML model and the path of the input data
-            loads the data and feeds the first 2 images to the model to predict.
-            shows the prediction in a window using cv2
-    """
-    def PredictAndShowImage(self, model, data_path):
-        test_lr = self.Utils.LoadH5File(data_path)[:2]
-        test_lr = test_lr.reshape(-1,96,96,3)
-        test_lr = test_lr/255
+    """Predicts and shows input and prediction images
 
-        pred = model.predict(test_lr)
+    Args:
+        model (keras model) : keras model that does the prediction
+        data_path (str) : path of the input data
+        read_from_directory (bool, optional) : whether to read images from a directory or from a file. defaults to False
+    """
+    def PredictAndShowImage(self, model, data_path, read_from_directory = False):
+        data = []
+        if read_from_directory:
+            data = self.Utils.ReadImages(data_path)
+        else:
+            data = self.Utils.LoadH5File(data_path)
+        data = data/255
+        image = np.expand_dims(data[1], axis = 0)
+        pred = model.predict(image)
         cv2.imshow("prediction",pred[0])
-        cv2.imshow("input",test_lr[0])
+        cv2.imshow("input",image[0])
         cv2.waitKey(0)
         cv2.destroyAllWindows()
+
 
     """
         Model:
@@ -101,34 +111,46 @@ class SuperResModel:
 
         return tf.keras.Model(inputs = inputs, outputs = c10)
 
+
+    """drops learning rate by 50% each 20 epochs
+
+    Args:
+        epoch_index (int) : index of current epoch
+        lr (float) : current learning rate
+
+    Returns:
+        (float) : modified learning rate
     """
-        schedular:
-            custom learning rate schedular takes in current epoch index and the current learning rate.
-            halves the learning rate eacht 20 epochs.
-            returns the new learning rate.
-    """
-    def schedular(self, epochIndex, lr):
-        if epochIndex % 20 == 0 and epochIndex > 0:
+    def schedular(self, epoch_index, lr):
+
+        if epoch_index % 20 == 0 and epoch_index > 0:
             return lr * 0.5
         return lr
 
-    """
-        L1Loss:
-            L1 loss function takes in the true value of y and predicted value.
-            substracts them from eachother.
-            returns the absolute value of the substraction.
+
+    """L1 loss function
+
+    Args:
+        y_true (numpy array / tf tensor) : the observed value of y
+        y_pred (numpy array / tf tensor) : the predicted value of y
+
+    Returns:
+        (float) : the absolute value of the difference between y_true and y_pred
     """
     def L1Loss(self, y_true,y_pred):
+
         return abs(y_true - y_pred)
 
-    """
-        TrainModel:
-            takes in training data paths (lowres and highres).
-            loads the data and normalizes it
-            build a model and fit the data to it.
-            saves the model after training is finished.
+
+    """Trains keras model on input data
+
+    Args:
+        training_lr_path (str) : path of low res training data
+        training_hr_path (str) : path of high res training data
+        num_of_epochs (Int, optional) : number of training epochs
     """
     def TrainModel(self,training_lr_path , training_hr_path, num_of_epochs = 100):
+
         checkpoint_filepath = 'super_res.h5'
         tensorboard = TensorBoard(log_dir = "logs/latest_model")
         early_stop = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=5)
@@ -149,6 +171,6 @@ class SuperResModel:
         callbacks=[CustomLearningRateScheduler(self.schedular), early_stop, tensorboard, model_checkpoint_callback])
 
 model = SuperResModel()
-#model.PredictAndShowImage(model.loadModel('saved_model/my_model', compile = False), data_path=r"D:\HBO\MinorAi\PickleFiles\X_train_2.h5")
+model.PredictAndShowImage(model.loadModel('super_res.h5', compile = False), data_path=r"D:\HBO\MinorAi\Div2kx4\valid_lr", read_from_directory = True)
 
 #model.TrainModel( r"D:\HBO\MinorAi\PickleFiles\X_train_1.h5", r"D:\HBO\MinorAi\PickleFiles\y_train_1.h5", num_of_epochs = 1)
