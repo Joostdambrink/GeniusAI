@@ -172,5 +172,38 @@ class Utils:
         cv2.waitKey()
         cv2.destroyAllWindows()
 
+    """ downscales an image
+
+    Args:
+        images : array of images
+        factor : the factor for the downscaling
+
+    Returns:
+        resized image
+    """
+    def DownscaleImage(self, img,  factor):
+        newTuple = (img.shape[0] // factor, img.shape[1] // factor,3)
+        downscaledImage = cv2.resize(
+            img, newTuple, interpolation= cv2.INTER_AREA)
+
+        return downscaledImage
+
+    """ downscales multiple images from a path
+
+    Args:
+        path: string where the images are
+        factor: factor for the downscaling
+
+    Returns:
+        array with resized images
+    """
+    def DownscaleImages(self, path, factor):
+        images = self.ReadImages(path)
+        downscaledImages = [self.DownscaleImage(
+            image, factor) for image in images]
+
+        return np.array(downscaledImages)
+
 if __name__ == "__main__":
     test = Utils()
+    test.DownscaleImages(r'C:\Users\Vincent\Desktop\images', 4)
