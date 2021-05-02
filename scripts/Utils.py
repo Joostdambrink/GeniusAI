@@ -182,11 +182,10 @@ class Utils:
         resized image
     """
     def DownscaleImage(self, img,  factor):
-        newTuple = (img.shape[0] // factor, img.shape[1] // factor,3)
-        downscaledImage = cv2.resize(
-            img, newTuple, interpolation= cv2.INTER_AREA)
+        new_shape = (img.shape[1] // factor, img.shape[0] // factor)
+        
 
-        return downscaledImage
+        return cv2.resize(img, new_shape, interpolation= cv2.INTER_AREA)
 
     """ downscales multiple images from a path
 
@@ -199,11 +198,10 @@ class Utils:
     """
     def DownscaleImages(self, path, factor):
         images = self.ReadImages(path)
-        downscaledImages = [self.DownscaleImage(
-            image, factor) for image in images]
+        downscaled_images = [self.DownscaleImage(image, factor) for image in images]
 
-        return np.array(downscaledImages)
+        return np.array(downscaled_images)
 
 if __name__ == "__main__":
     test = Utils()
-    test.DownscaleImages(r'C:\Users\Vincent\Desktop\images', 4)
+    test.DownscaleImages(r'D:\HBO\MinorAi\Div2kx4\valid_lr', 4)
