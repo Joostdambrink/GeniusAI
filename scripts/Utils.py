@@ -165,5 +165,36 @@ class Utils:
         cv2.waitKey()
         cv2.destroyAllWindows()
 
+    """ downscales an image
+
+    Args:
+        images : array of images
+        factor : the factor for the downscaling
+
+    Returns:
+        resized image
+    """
+    def DownscaleImage(self, img,  factor):
+        new_shape = (img.shape[1] // factor, img.shape[0] // factor)
+        
+
+        return cv2.resize(img, new_shape, interpolation= cv2.INTER_AREA)
+
+    """ downscales multiple images from a path
+
+    Args:
+        path: string where the images are
+        factor: factor for the downscaling
+
+    Returns:
+        array with resized images
+    """
+    def DownscaleImages(self, path, factor):
+        images = self.ReadImages(path)
+        downscaled_images = [self.DownscaleImage(image, factor) for image in images]
+
+        return np.array(downscaled_images)
+
 if __name__ == "__main__":
     test = Utils()
+    test.DownscaleImages(r'D:\HBO\MinorAi\Div2kx4\valid_lr', 4)
