@@ -37,7 +37,6 @@ class Utils:
         (numpy array) : numpy array of cropped images
     """
     def GetCroppedImages(self,images_array, crop_size):
-
         cropped_images = []
         for i in images_array:
             for a in range(0,i.shape[0],crop_size):
@@ -59,7 +58,6 @@ class Utils:
         (generator) : generator with rotated images
     """
     def ImageAugmentations(self,images, rotation = cv2.ROTATE_90_CLOCKWISE):
-
         for i in range(len(images)):
             self.printProgressBar(i,len(images),prefix="Augmenting", suffix = "Complete")
             yield cv2.rotate(images[i],rotation)
@@ -72,8 +70,6 @@ class Utils:
         path (str) : path of the file
     """
     def SaveDataToFile(self,data,path):
-
-
         with open(path, 'wb') as handle:
             pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
@@ -87,7 +83,6 @@ class Utils:
         (any python type) : whatever data the file contains
     """
     def LoadDataFromFile(self,path):
-
         return pickle.load( open( path, "rb" ) )
 
 
@@ -150,7 +145,6 @@ class Utils:
         num_of_splits (int, optional) : the number of splits of data. Defaults to 5.
     """
     def SaveInBatches(self, data, directory,prefix = "images", suffix = ".h5", num_of_splits = 5):
-
         step_size = len(data) // num_of_splits
         current_split = 1
         for i in range(0,len(data), step_size):
@@ -166,7 +160,6 @@ class Utils:
         y (numpy array) : array of images
     """
     def DisplayImages(self, x, y):
-
         cv2.imshow("image_1", x[0]/255)
         cv2.imshow("image_2", y[0]/255)
         cv2.waitKey()
