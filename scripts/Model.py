@@ -3,6 +3,7 @@ from tensorflow.keras.layers import Conv2D, Activation, UpSampling2D,PReLU,Input
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import Constant
 from time import time
+from time import gmtime, strftime
 from tensorflow.keras.callbacks import TensorBoard
 import pickle
 import numpy as np
@@ -122,7 +123,6 @@ class SuperResModel:
         (float) : modified learning rate
     """
     def schedular(self, epoch_index, lr):
-
         if epoch_index % 20 == 0 and epoch_index > 0:
             return lr * 0.5
         return lr
@@ -138,8 +138,20 @@ class SuperResModel:
         (float) : the absolute value of the difference between y_true and y_pred
     """
     def L1Loss(self, y_true,y_pred):
-
         return abs(y_true - y_pred)
+
+    """loads a model and gets its weights
+
+    Args:
+        model_path (str) : path of saved model
+        compile (bool) : whether to compile the model or not
+    
+    Returns:
+        (numpy array) : weights of the loaded model
+    """
+    def GetModelWeights(self,model_path, compile = True):
+        model = self.loadModel(model_path,compile=compile)
+        return model.get_weights()
 
 
     """Trains keras model on input data
@@ -149,10 +161,8 @@ class SuperResModel:
         training_hr_path (str) : path of high res training data
         num_of_epochs (Int, optional) : number of training epochs
     """
-    def TrainModel(self,training_lr_path , training_hr_path, num_of_epochs = 100):
-
-        checkpoint_filepath = 'super_res.h5'
-        tensorboard = TensorBoard(log_dir = "logs/latest_model")
+    def TrainModel(self,training_lr_path , training_hr_path, num_of_epochs = 100, checkpoint_filepath = None,existing_weights = None, load_weights = False):
+        tensorboard = TensorBoard(log_dir = "logs/latest_model_{}".format(strftime("%d_%m_%Y", gmtime())))
         early_stop = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=5)
         model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_filepath,
@@ -160,8 +170,9 @@ class SuperResModel:
         monitor='loss',
         mode='min',
         save_best_only=False)
-
         model = self.Model()
+        if load_weights and not existing_weights == None:
+            model.set_weights(existing_weights)
         model.summary()
         model.compile(optimizer = tf.keras.optimizers.SGD(learning_rate = 0.1,momentum=0.9), loss = self.L1Loss)
         model.fit(self.Utils.LoadH5File(training_lr_path)/255,
@@ -171,6 +182,11 @@ class SuperResModel:
         callbacks=[CustomLearningRateScheduler(self.schedular), early_stop, tensorboard, model_checkpoint_callback])
 
 model = SuperResModel()
-model.PredictAndShowImage(model.loadModel('super_res.h5', compile = False), data_path=r"D:\HBO\MinorAi\Div2kx4\valid_lr", read_from_directory = True)
+#model.PredictAndShowImage(model.loadModel('super_res.h5', compile = False), data_path=r"D:\HBO\MinorAi\Div2kx4\valid_lr", read_from_directory = True)
 
-#model.TrainModel( r"D:\HBO\MinorAi\PickleFiles\X_train_1.h5", r"D:\HBO\MinorAi\PickleFiles\y_train_1.h5", num_of_epochs = 1)
+model.TrainModel( r"D:\HBO\MinorAi\PickleFiles\X_train_faces_1_1.h5",
+r"D:\HBO\MinorAi\PickleFiles\y_train_faces_1_1.h5",
+num_of_epochs = 1,
+checkpoint_filepath="super_res_faces.h5",
+existing_weights = model.GetModelWeights("super_res.h5",compile = False),
+load_weights = True)

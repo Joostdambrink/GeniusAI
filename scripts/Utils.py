@@ -24,7 +24,7 @@ class Utils:
             img = cv2.imread(os.path.join(path,filename))
             if img is not None:
                 images.append(np.array(img))
-        return np.array(images)
+        return images
 
 
     """crops images from an array
@@ -165,6 +165,7 @@ class Utils:
         cv2.waitKey()
         cv2.destroyAllWindows()
 
+
     """ downscales an image
 
     Args:
@@ -177,8 +178,8 @@ class Utils:
     def DownscaleImage(self, img,  factor):
         new_shape = (img.shape[1] // factor, img.shape[0] // factor)
         
-
         return cv2.resize(img, new_shape, interpolation= cv2.INTER_AREA)
+
 
     """ downscales multiple images from a path
 
@@ -197,4 +198,4 @@ class Utils:
 
 if __name__ == "__main__":
     test = Utils()
-    test.DownscaleImages(r'D:\HBO\MinorAi\Div2kx4\valid_lr', 4)
+    test.SaveAsH5File(test.DownscaleImages(r"D:\HBO\MinorAi\1m_faces_00_01_02_03\1m_faces_01", 64), r"D:\HBO\MinorAi\PickleFiles\X_train_faces_2.h5", chunk_shape=(200,16,16,3))
