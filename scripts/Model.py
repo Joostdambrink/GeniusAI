@@ -181,7 +181,7 @@ class SuperResModel:
         callbacks=[CustomLearningRateScheduler(self.schedular), early_stop, tensorboard, model_checkpoint_callback])
     
 
-    """Resumes training after sudden stop of a model and
+    """Resumes training after sudden stop of a model
     
     Args:
         X_train_path (str) : X training data path
@@ -210,7 +210,7 @@ class SuperResModel:
         
 
 
-    """Calculates epoch index based on learning rate for
+    """Calculates epoch index based on learning rate
 
     Args:
         lr (float) : learning rate
@@ -223,7 +223,7 @@ class SuperResModel:
         start_value = 0.10000
         lr_rounded = round(lr,5)
         while start_value > lr_rounded:
-            start_value = start_value / 2
+            start_value /= 2
             count += 1
         return count * 20
 
