@@ -37,8 +37,10 @@ class ResidualBlock:
         (keras layer) : result of the last layer in the unit
     """
     def ResidualUnit(self,input_data, num_of_filters):
-
-        x = Conv2D(num_of_filters,(2,2),padding="same")(input_data)
+        identity = input_data
+        x = Conv2D(num_of_filters,(2,2),padding="same")(identity)
         x = PReLU(alpha_initializer=Constant(value=0.25),shared_axes=[1,2])(x)
         x = Conv2D(num_of_filters,(2,2),padding = "same")(x)
+        x += identity
+        x = PReLU(alpha_initializer=Constant(value=0.25),shared_axes=[1,2])(x)
         return x
