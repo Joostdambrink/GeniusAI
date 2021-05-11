@@ -24,7 +24,7 @@ class Utils:
             img = cv2.imread(os.path.join(path,filename))
             if img is not None:
                 images.append(np.array(img))
-        return images
+        return np.array(images)
 
 
     """crops images from an array
