@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Conv2D, Activation, UpSampling2D,PReLU,Input,LeakyReLU,Add,BatchNormalization,MaxPool2D,Dense
+from tensorflow.keras.layers import Conv2D, Activation, UpSampling2D,PReLU,Input,LeakyReLU,Add,Dropout
 from tensorflow.keras import Sequential
 from tensorflow.keras.initializers import Constant
 from time import time
@@ -82,33 +82,32 @@ class SuperResModel:
         }
         rb = ResidualBlock()
         inputs = Input(shape=[None,None,3])
-        c1 = Conv2D(64,5,input_shape = (None,None,3),**conv_args)(inputs)
+        c1 = Conv2D(64,3,input_shape = (None,None,3),**conv_args)(inputs)
         pr1 = PReLU(alpha_initializer="zeros",shared_axes=[1,2])(c1)
 
         resUnit = rb.ResBlock(pr1,num_of_units = 24,num_of_filters = 64)
         
         concat = Add()([pr1,resUnit])
         
-        c2 = Conv2D(64,4,**conv_args)(concat)
+        c2 = Conv2D(64,3,**conv_args)(concat)
 
-        c3 = Conv2D(64,4,**conv_args)(c2)
+        c3 = Conv2D(64,3,**conv_args)(c2)
         pr2 = PReLU(alpha_initializer="zeros",shared_axes=[1,2])(c3)
-        c4 = Conv2D(64,4,**conv_args)(pr2)
-
-        c5 = Conv2D(64,3,**conv_args)(c4)
+        c4 = Conv2D(64,3,**conv_args)(pr2)
+        d1 = Dropout(0.3)(c4)
+        c5 = Conv2D(64,3,**conv_args)(d1)
         pr3 = PReLU(alpha_initializer="zeros",shared_axes=[1,2])(c5)
 
         up1 = UpSampling2D(size = (2,2),interpolation = "nearest")(pr3)
-        c6 = Conv2D(64,2,**conv_args)(up1)
+        c6 = Conv2D(64,5,**conv_args)(up1)
         leaky = LeakyReLU()(c6)
         up2 = UpSampling2D(size = (2,2), interpolation="nearest")(leaky)
-        c7 = Conv2D(64,2,**conv_args)(up2)
+        c7 = Conv2D(64,5,**conv_args)(up2)
         leaky2 = LeakyReLU()(c7)
-
-        c8 = Conv2D(64,2,**conv_args)(leaky2)
-        c9 = Conv2D(64,2,**conv_args)(c8)
+        d2 = Dropout(0.3)(leaky2)
+        c9 = Conv2D(64,5,**conv_args)(d2)
         pr4 = PReLU(alpha_initializer="zeros",shared_axes=[1,2])(c9)
-        c10 = Conv2D(3,2,**conv_args)(pr4)
+        c10 = Conv2D(3,5,**conv_args)(pr4)
 
         return tf.keras.Model(inputs = inputs, outputs = c10)
 
@@ -177,6 +176,7 @@ class SuperResModel:
         model.fit(self.Utils.LoadH5File(X_train_path)/255,
         self.Utils.LoadH5File(y_train_path)/255,
         batch_size = 1,
+        validation_split = 0.1,
         epochs= num_of_epochs,
         callbacks=[CustomLearningRateScheduler(self.schedular), early_stop, tensorboard, model_checkpoint_callback])
     
