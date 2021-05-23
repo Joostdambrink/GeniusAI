@@ -208,7 +208,7 @@ class SuperResModel:
         y_train_path (str) : path of high res training data
         num_of_epochs (Int, optional) : number of training epochs
     """
-    def TrainModel(self,model = None,X_train_path = None , y_train_path = None, num_of_epochs = 100, checkpoint_filepath = None,existing_weights = None, load_weights = False, optimizer = None, callbacks = None, **args):
+    def TrainModel(self,model = None,X_train_path = None , y_train_path = None, num_of_epochs = 100, checkpoint_filepath = None,existing_weights = None, load_weights = False, optimizer = None, **args):
         tensorboard = TensorBoard(log_dir = "logs/latest_model_{}".format(strftime("%d_%m_%Y", gmtime())))
         early_stop = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=5)
         model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
@@ -220,7 +220,7 @@ class SuperResModel:
         if load_weights and not existing_weights == None:
             model.set_weights(existing_weights)
         model.summary()
-        model.compile(optimizer = tf.keras.optimizers.SGD(learning_rate = 0.1,momentum=0.9), loss = self.L1Loss)
+        model.compile(optimizer = optimizer, loss = self.L1Loss)
         model.fit(self.Utils.LoadH5File(X_train_path)/255,
         self.Utils.LoadH5File(y_train_path)/255,
         batch_size = 5,
@@ -285,7 +285,6 @@ model_args = {
     "existing_weights" : None,
     "load_weights" : False,
     "optimizer" : tf.keras.optimizers.SGD(learning_rate = 0.1,momentum=0.9),
-    "callbacks" : []
 
 }
 model.PredictAndShowImage(model.loadModel('super_res.h5'), data_path=r"D:\HBO\MinorAi\test", read_from_directory = True)
