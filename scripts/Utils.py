@@ -3,6 +3,8 @@ import cv2
 import pickle
 import numpy as np
 import h5py
+from PIL import Image, ImageEnhance
+from PIL import ImageFilter
 class Utils:
     def __init__(self):
         self.train_lr = []
@@ -195,6 +197,32 @@ class Utils:
         downscaled_images = [self.DownscaleImage(image, factor) for image in images]
 
         return np.array(downscaled_images)
+    
+    """Adds sharpen filter to given images
+
+    Args:
+        image (np array) : input image as array
+
+    Returns:
+        (array) : enhanced image in an array
+    """
+    def SharpenImage(self, image):
+        x = (image * 255).astype(np.uint8)
+        x = Image.fromarray(x)
+        enhancer = ImageEnhance.Sharpness(x)
+        return enhancer.enhance(1)
+    
+
+    """Reverses the colors of given images
+
+    Args:
+        image (np array) : array of input image
+
+    Returns:
+        (array) : image with reversed colors
+    """
+    def ReverseColors(self,image):
+        return np.array(cv2.cvtColor(np.float32(image), cv2.COLOR_BGR2RGB))
 
 if __name__ == "__main__":
     test = Utils()

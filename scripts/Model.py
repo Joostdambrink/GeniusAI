@@ -11,6 +11,7 @@ import cv2
 from ResidualBlock import ResidualBlock
 from CustomSchedular import CustomLearningRateScheduler
 from Utils import Utils
+import matplotlib.pyplot as plt
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import keras.backend as K
 
@@ -49,11 +50,22 @@ class SuperResModel:
         data = data/255
         image = np.expand_dims(data[0], axis = 0)
         pred = model.predict(image)
-        cv2.imshow("prediction",pred[0])
-        cv2.imshow("input",cv2.resize(image[0], (pred[0].shape[1],pred[0].shape[0]), interpolation=cv2.INTER_CUBIC))
-        cv2.imwrite(r"D:\HBO\MinorAi\test\test2.jpg", pred[0]*255)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        cv2.imwrite(r"D:\HBO\MinorAi\test\prediction.png", pred[0]*255)
+        cv2.imwrite(r"D:\HBO\MinorAi\test\bicubic.png", cv2.resize(image[0], (pred[0].shape[1],pred[0].shape[0]), interpolation=cv2.INTER_CUBIC)*255)
+        cv2.imwrite(r"D:\HBO\MinorAi\test\sharp.png", np.float32(self.Utils.SharpenImage(pred[0])))
+
+        images = [ ("prediction", self.Utils.ReverseColors(pred[0])), ("after sharpening", self.Utils.SharpenImage(self.Utils.ReverseColors(pred[0]))), ("upscaled bicubic", self.Utils.ReverseColors(cv2.resize(image[0], (pred[0].shape[1],pred[0].shape[0]), interpolation=cv2.INTER_CUBIC)))]
+        rows = 1
+        cols = 3
+        axes=[]
+        fig=plt.figure()
+        for a in range(rows*cols):
+            axes.append( fig.add_subplot(rows, cols, a+1) )
+            axes[-1].set_title(images[a][0]) 
+            plt.imshow(images[a][1])
+
+        fig.tight_layout()    
+        plt.show()
 
 
     """
@@ -82,20 +94,19 @@ class SuperResModel:
         }
         rb = ResidualBlock()
         inputs = Input(shape=[None,None,3])
-        c1 = Conv2D(64,3,input_shape = (None,None,3),**conv_args)(inputs)
+        c1 = Conv2D(64,5,input_shape = (None,None,3),**conv_args)(inputs)
         pr1 = PReLU(alpha_initializer="zeros",shared_axes=[1,2])(c1)
 
         resUnit = rb.ResBlock(pr1,num_of_units = 24,num_of_filters = 64)
         
-        concat = Add()([pr1,resUnit])
-        
-        c2 = Conv2D(64,3,**conv_args)(concat)
+        add1 = Add()([pr1,resUnit])
+        c2 = Conv2D(64,5,**conv_args)(add1)
 
-        c3 = Conv2D(64,3,**conv_args)(c2)
+        c3 = Conv2D(64,5,**conv_args)(c2)
         pr2 = PReLU(alpha_initializer="zeros",shared_axes=[1,2])(c3)
-        c4 = Conv2D(64,3,**conv_args)(pr2)
-        d1 = Dropout(0.3)(c4)
-        c5 = Conv2D(64,3,**conv_args)(d1)
+        c4 = Conv2D(64,5,**conv_args)(pr2)
+
+        c5 = Conv2D(64,5,**conv_args)(c4)
         pr3 = PReLU(alpha_initializer="zeros",shared_axes=[1,2])(c5)
 
         up1 = UpSampling2D(size = (2,2),interpolation = "nearest")(pr3)
@@ -104,10 +115,11 @@ class SuperResModel:
         up2 = UpSampling2D(size = (2,2), interpolation="nearest")(leaky)
         c7 = Conv2D(64,5,**conv_args)(up2)
         leaky2 = LeakyReLU()(c7)
-        d2 = Dropout(0.3)(leaky2)
-        c9 = Conv2D(64,5,**conv_args)(d2)
+
+        c8 = Conv2D(64,3,**conv_args)(leaky2)
+        c9 = Conv2D(64,3,**conv_args)(c8)
         pr4 = PReLU(alpha_initializer="zeros",shared_axes=[1,2])(c9)
-        c10 = Conv2D(3,5,**conv_args)(pr4)
+        c10 = Conv2D(3,3,**conv_args)(pr4)
 
         return tf.keras.Model(inputs = inputs, outputs = c10)
 
@@ -175,10 +187,10 @@ class SuperResModel:
         model.compile(optimizer = tf.keras.optimizers.SGD(learning_rate = 0.1,momentum=0.9), loss = self.L1Loss)
         model.fit(self.Utils.LoadH5File(X_train_path)/255,
         self.Utils.LoadH5File(y_train_path)/255,
-        batch_size = 1,
+        batch_size = 5,
         validation_split = 0.1,
         epochs= num_of_epochs,
-        callbacks=[CustomLearningRateScheduler(self.schedular), early_stop, tensorboard, model_checkpoint_callback])
+        callbacks=[CustomLearningRateScheduler(self.schedular), tensorboard, model_checkpoint_callback])
     
 
     """Resumes training after sudden stop of a model
@@ -203,7 +215,7 @@ class SuperResModel:
         latest_epoch = self.GetEpochFromLearningRate(K.eval(model.optimizer.lr))
         model.fit(self.Utils.LoadH5File(X_train_path)/255,
         self.Utils.LoadH5File(y_train_path)/255,
-        batch_size = 1,
+        batch_size = 10,
         epochs= num_of_epochs,
         initial_epoch = latest_epoch,
         callbacks=[CustomLearningRateScheduler(self.schedular), early_stop, tensorboard, model_checkpoint_callback])

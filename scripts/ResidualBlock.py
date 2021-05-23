@@ -40,6 +40,5 @@ class ResidualBlock:
         x = Conv2D(num_of_filters,kernel_size,padding="same")(identity)
         x = PReLU(alpha_initializer=Constant(value=0.25),shared_axes=[1,2])(x)
         x = Conv2D(num_of_filters,kernel_size,padding = "same")(x)
-        x = Add()([x,identity])
         x = PReLU(alpha_initializer=Constant(value=0.25),shared_axes=[1,2])(x)
         return x
