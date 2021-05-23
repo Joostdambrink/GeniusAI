@@ -123,6 +123,64 @@ class SuperResModel:
 
         return tf.keras.Model(inputs = inputs, outputs = c10)
 
+    """
+        Denoising model:
+            this is the convolutional model used for the denoising task.
+            the model contains the following layers:
+                - Convolutional layer (relu)
+                - Batch normalization
+                - Max pooling layer
+                - Convolutional layer (relu)
+                - Batch normalization
+                - Max pooling layer
+                
+                - Convolutional layer (relu)
+                - Batch normalization 
+                - Upsampling layer
+                - Convolutional layer (relu)
+                - Batch normalization
+                - Upsampling layer
+                - Last convolutional layer (sigmoid)
+
+            returns a Keras model with all these layers.
+    """
+    def DenoisingModel(self):
+        inputs = Input(shape =[None,None,3])
+        c1 = Conv2D(32, (3,3), activation = 'relu', padding = 'same')(inputs)
+        bn1 = BatchNormalization()(c1)
+        p2 = MaxPool2D(pool_size = (2,2), padding = 'same')(bn1)
+        c2 = Conv2D(32, (3,3), activation = 'relu', padding = 'same')(p2)
+        bn2 = BatchNormalization()(c2)
+        encoded = MaxPool2D(pool_size = (2,2), padding = 'same')(bn2)
+
+        c3 = Conv2D(32, (3,3), activation = 'relu', padding = 'same')(encoded)
+        bn3 = BatchNormalization()(c3)
+        up1 = UpSampling2D()(bn3)
+        c4 = Conv2D(32, (3,3), activation = 'relu', padding = 'same')(up1)
+        bn4 = BatchNormalization()(c4)
+        up2 = UpSampling2D()(bn4)
+        decoded = Conv2D(1, (3,3), activation = 'sigmoid', padding = 'same')(up2)
+
+        return tf.keras.Model(inputs = inputs, outputs = decoded)
+
+    """Adds noise to an array of images
+
+    Args:
+        images (array) : array of images
+        noise (float) : noise factor
+
+    Returns:
+        (array) : images with added noise
+    """    
+
+    def AddNoise(self, images, noise = 0.1):
+        noisyImages = []
+        for x in images:
+            x = x + noise + np.random.normal(loc = 0., scale = 1., size = None)
+            noisyImages.append(x)
+
+        return noisyImages
+
 
     """drops learning rate by 50% each 20 epochs
 
