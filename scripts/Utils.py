@@ -224,6 +224,24 @@ class Utils:
     def ReverseColors(self,image):
         return np.array(cv2.cvtColor(np.float32(image), cv2.COLOR_BGR2RGB))
 
+
+    """Adds noise to an array of images
+
+    Args:
+        images (array) : array of images
+        noise (float) : noise factor
+
+    Returns:
+        (array) : images with added noise
+    """    
+    def AddNoise(self, images, noise = 0.1):
+        noisyImages = []
+        for x in images:
+            x = x + noise + np.random.normal(loc = 0., scale = 1., size = None)
+            noisyImages.append(x)
+
+        return noisyImages
+
 if __name__ == "__main__":
     test = Utils()
     test.SaveAsH5File(test.DownscaleImages(r"D:\HBO\MinorAi\1m_faces_00_01_02_03\1m_faces_01", 64), r"D:\HBO\MinorAi\PickleFiles\X_train_faces_2.h5", chunk_shape=(200,16,16,3))

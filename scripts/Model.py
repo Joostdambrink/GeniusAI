@@ -1,8 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Conv2D, Activation, UpSampling2D,PReLU,Input,LeakyReLU,Add,Dropout
-from tensorflow.keras import Sequential
-from tensorflow.keras.initializers import Constant
-from time import time
+from tensorflow.keras.layers import Conv2D, UpSampling2D,PReLU,Input,LeakyReLU,Add,BatchNormalization,MaxPool2D
 from time import gmtime, strftime
 from tensorflow.keras.callbacks import TensorBoard
 import pickle
@@ -12,7 +9,6 @@ from ResidualBlock import ResidualBlock
 from CustomSchedular import CustomLearningRateScheduler
 from Utils import Utils
 import matplotlib.pyplot as plt
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import keras.backend as K
 
 class SuperResModel:
@@ -163,24 +159,6 @@ class SuperResModel:
 
         return tf.keras.Model(inputs = inputs, outputs = decoded)
 
-    """Adds noise to an array of images
-
-    Args:
-        images (array) : array of images
-        noise (float) : noise factor
-
-    Returns:
-        (array) : images with added noise
-    """    
-
-    def AddNoise(self, images, noise = 0.1):
-        noisyImages = []
-        for x in images:
-            x = x + noise + np.random.normal(loc = 0., scale = 1., size = None)
-            noisyImages.append(x)
-
-        return noisyImages
-
 
     """drops learning rate by 50% each 20 epochs
 
@@ -230,7 +208,7 @@ class SuperResModel:
         y_train_path (str) : path of high res training data
         num_of_epochs (Int, optional) : number of training epochs
     """
-    def TrainModel(self,model,X_train_path , y_train_path, num_of_epochs = 100, checkpoint_filepath = None,existing_weights = None, load_weights = False):
+    def TrainModel(self,model = None,X_train_path = None , y_train_path = None, num_of_epochs = 100, checkpoint_filepath = None,existing_weights = None, load_weights = False, optimizer = None, callbacks = None, **args):
         tensorboard = TensorBoard(log_dir = "logs/latest_model_{}".format(strftime("%d_%m_%Y", gmtime())))
         early_stop = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=5)
         model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
@@ -298,4 +276,16 @@ class SuperResModel:
         return count * 20
 
 model = SuperResModel()
+model_args = {
+    "model" : model.Model(),
+    "X_train_path" : "",
+    "y_train_path" : "",
+    "num_of_epochs" : 100,
+    "checkpoint_filepath" : "",
+    "existing_weights" : None,
+    "load_weights" : False,
+    "optimizer" : tf.keras.optimizers.SGD(learning_rate = 0.1,momentum=0.9),
+    "callbacks" : []
+
+}
 model.PredictAndShowImage(model.loadModel('super_res.h5'), data_path=r"D:\HBO\MinorAi\test", read_from_directory = True)
