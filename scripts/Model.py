@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Conv2D, UpSampling2D,PReLU,Input,LeakyReLU,Add,BatchNormalization,MaxPool2D
+from tensorflow.keras.layers import Conv2D, UpSampling2D,PReLU,Input,LeakyReLU,Add,BatchNormalization,MaxPool2D, Activation
 from time import gmtime, strftime
 from tensorflow.keras.callbacks import TensorBoard
 import pickle
@@ -25,9 +25,11 @@ class SuperResModel:
     Returns:
         (keras model) : the loaded model.
     """
-    def loadModel(self,model_path):
-        model = tf.keras.models.load_model(model_path, custom_objects = {'L1Loss' : self.L1Loss})
-        return model
+    def loadModel(self,model_path, is_custom = True):
+        if is_custom:
+            return tf.keras.models.load_model(model_path, custom_objects = {'L1Loss' : self.L1Loss})
+        else:
+            return tf.keras.models.load_model(model_path)
 
 
     """Predicts and shows input and prediction images
@@ -46,13 +48,20 @@ class SuperResModel:
         data = data/255
         image = np.expand_dims(data[0], axis = 0)
         pred = model.predict(image)
+        denoiser = self.loadModel('denoiser', is_custom = False)
+        denoised = denoiser.predict(pred)
+        original_denoise = denoiser.predict(image)
         cv2.imwrite(r"D:\HBO\MinorAi\test\prediction.png", pred[0]*255)
+        cv2.imwrite(r"D:\HBO\MinorAi\test\denoised.png", denoised[0]*255)
+        cv2.imwrite(r"D:\HBO\MinorAi\test\denoised_original.png", original_denoise[0]*255)
         cv2.imwrite(r"D:\HBO\MinorAi\test\bicubic.png", cv2.resize(image[0], (pred[0].shape[1],pred[0].shape[0]), interpolation=cv2.INTER_CUBIC)*255)
+        cv2.imwrite(r"D:\HBO\MinorAi\test\scaling_2x.png", cv2.resize(pred[0], (pred[0].shape[1]//2,pred[0].shape[0]//2), interpolation=cv2.INTER_CUBIC)*255)
         cv2.imwrite(r"D:\HBO\MinorAi\test\sharp.png", np.float32(self.Utils.SharpenImage(pred[0])))
-
-        images = [ ("prediction", self.Utils.ReverseColors(pred[0])), ("after sharpening", self.Utils.SharpenImage(self.Utils.ReverseColors(pred[0]))), ("upscaled bicubic", self.Utils.ReverseColors(cv2.resize(image[0], (pred[0].shape[1],pred[0].shape[0]), interpolation=cv2.INTER_CUBIC)))]
+        cv2.imwrite(r"D:\HBO\MinorAi\test\sharp_denoise.png", np.float32(self.Utils.SharpenImage(denoised[0])))
+        cv2.imwrite(r"D:\HBO\MinorAi\test\smooth.png", np.float32(self.Utils.SmoothImage(pred[0])))
+        images = [ ("prediction", self.Utils.ReverseColors(pred[0])), ("after sharpening", self.Utils.SharpenImage(self.Utils.ReverseColors(pred[0]))), ("denoised", self.Utils.ReverseColors(denoised[0])), ("upscaled bicubic", self.Utils.ReverseColors(cv2.resize(image[0], (pred[0].shape[1],pred[0].shape[0]), interpolation=cv2.INTER_CUBIC)))]
         rows = 1
-        cols = 3
+        cols = 4
         axes=[]
         fig=plt.figure()
         for a in range(rows*cols):
@@ -155,9 +164,10 @@ class SuperResModel:
         c4 = Conv2D(32, (3,3), activation = 'relu', padding = 'same')(up1)
         bn4 = BatchNormalization()(c4)
         up2 = UpSampling2D()(bn4)
-        decoded = Conv2D(1, (3,3), activation = 'sigmoid', padding = 'same')(up2)
+        decoded = Conv2D(3, (3,3), activation = 'sigmoid', padding = 'same')(up2)
+        output = Activation("softmax")(decoded)
 
-        return tf.keras.Model(inputs = inputs, outputs = decoded)
+        return tf.keras.Model(inputs = inputs, outputs = output)
 
 
     """drops learning rate by 50% each 20 epochs
@@ -208,8 +218,8 @@ class SuperResModel:
         y_train_path (str) : path of high res training data
         num_of_epochs (Int, optional) : number of training epochs
     """
-    def TrainModel(self,model = None,X_train_path = None , y_train_path = None, num_of_epochs = 100, checkpoint_filepath = None,existing_weights = None, load_weights = False, optimizer = None, **args):
-        tensorboard = TensorBoard(log_dir = "logs/latest_model_{}".format(strftime("%d_%m_%Y", gmtime())))
+    def TrainModel(self,model = None,X_train_path = None , y_train_path = None, num_of_epochs = 100, checkpoint_filepath = None,existing_weights = None, load_weights = False, optimizer = None,logsdir = None, **args):
+        tensorboard = TensorBoard(log_dir = logsdir)
         early_stop = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=5)
         model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_filepath,
@@ -220,13 +230,13 @@ class SuperResModel:
         if load_weights and not existing_weights == None:
             model.set_weights(existing_weights)
         model.summary()
-        model.compile(optimizer = optimizer, loss = self.L1Loss)
+        model.compile(optimizer = optimizer, loss = "mse")
         model.fit(self.Utils.LoadH5File(X_train_path)/255,
         self.Utils.LoadH5File(y_train_path)/255,
         batch_size = 5,
         validation_split = 0.1,
         epochs= num_of_epochs,
-        callbacks=[CustomLearningRateScheduler(self.schedular), tensorboard, model_checkpoint_callback])
+        callbacks=[tensorboard, model_checkpoint_callback])
     
 
     """Resumes training after sudden stop of a model
@@ -277,14 +287,16 @@ class SuperResModel:
 
 model = SuperResModel()
 model_args = {
-    "model" : model.Model(),
-    "X_train_path" : "",
-    "y_train_path" : "",
+    "model" : model.DenoisingModel(),
+    "X_train_path" : r"D:\HBO\MinorAi\PickleFiles\train_lr_bicubic.h5",
+    "y_train_path" : r"D:\HBO\MinorAi\PickleFiles\train_lr.h5",
     "num_of_epochs" : 100,
-    "checkpoint_filepath" : "",
+    "logsdir" : "denoiser_23_5_21",
+    "checkpoint_filepath" : "denoiser",
     "existing_weights" : None,
     "load_weights" : False,
-    "optimizer" : tf.keras.optimizers.SGD(learning_rate = 0.1,momentum=0.9),
+    "optimizer" : "adam",
 
 }
 model.PredictAndShowImage(model.loadModel('super_res.h5'), data_path=r"D:\HBO\MinorAi\test", read_from_directory = True)
+#model.TrainModel(**model_args)

@@ -192,11 +192,10 @@ class Utils:
     Returns:
         array with resized images
     """
-    def DownscaleImages(self, path, factor):
-        images = self.ReadImages(path)
-        downscaled_images = [self.DownscaleImage(image, factor) for image in images]
+    def DownscaleImages(self, images, factor):
+        
 
-        return np.array(downscaled_images)
+        return np.array([self.DownscaleImage(image, factor) for image in images])
     
     """Adds sharpen filter to given images
 
@@ -210,7 +209,7 @@ class Utils:
         x = (image * 255).astype(np.uint8)
         x = Image.fromarray(x)
         enhancer = ImageEnhance.Sharpness(x)
-        return enhancer.enhance(1)
+        return enhancer.enhance(3)
     
 
     """Reverses the colors of given images
@@ -235,13 +234,31 @@ class Utils:
         (array) : images with added noise
     """    
     def AddNoise(self, images, noise = 0.1):
-        noisyImages = []
-        for x in images:
-            x = x + noise + np.random.normal(loc = 0., scale = 1., size = None)
-            noisyImages.append(x)
+        noisy_array = (images/255) + noise * np.random.normal(
+            loc=0.0, scale=1.0, size=images.shape
+        )
 
-        return noisyImages
+        return np.clip(noisy_array, 0.0, 1.0) * 255
+    
+    def BlurrImages(self, images):
+        return np.array([cv2.blur(img,(5,5)) for img in images])
+    
+    def SmoothImage(self, image):
+        x = (image * 255).astype(np.uint8)
+        x = Image.fromarray(x)
+        return x.filter(ImageFilter.SMOOTH_MORE)
+    
+    def Upscale(self, images, factor = 2):
+        return np.array([cv2.resize(img,(img.shape[1] * factor, img.shape[0] * factor)) for img in images])
 
 if __name__ == "__main__":
     test = Utils()
-    test.SaveAsH5File(test.DownscaleImages(r"D:\HBO\MinorAi\1m_faces_00_01_02_03\1m_faces_01", 64), r"D:\HBO\MinorAi\PickleFiles\X_train_faces_2.h5", chunk_shape=(200,16,16,3))
+    #test.SaveAsH5File(test.Upscale(test.DownscaleImages(test.LoadH5File(r"D:\HBO\MinorAi\PickleFiles\train_lr.h5"), factor = 4), factor = 4), r"D:\HBO\MinorAi\PickleFiles\train_lr_bicubic.h5")
+    # x = test.LoadH5File(r"D:\HBO\MinorAi\PickleFiles\train_lr_bicubic.h5")
+    # print(x[0].shape)
+    # cv2.imshow("image", x[4] / 255)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    x = test.ReadImages(r"D:\HBO\MinorAi\test")
+    img = cv2.resize(x[0], (x[0].shape[1] //4, x[0].shape[0] // 4))
+    cv2.imwrite(r"D:\HBO\MinorAi\test" + "\\downsampled_4x.png", img)
