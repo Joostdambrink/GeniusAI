@@ -9,7 +9,6 @@ from ResidualBlock import ResidualBlock
 from CustomSchedular import CustomLearningRateScheduler
 from Utils import Utils
 import matplotlib.pyplot as plt
-from ReflectionPadding import ReflectionPadding2D
 
 class SuperResModel:
     def __init__(self):
@@ -51,7 +50,7 @@ class SuperResModel:
         denoiser = self.loadModel('denoiser', is_custom = False)
         denoised = denoiser.predict(pred)
         original_denoise = denoiser.predict(image)
-        cv2.imwrite(r"D:\HBO\MinorAi\test\prediction.png", pred[0]*255)
+        cv2.imwrite(r"D:\HBO\MinorAi\test\prediction.png", pred[0]/255)
         cv2.imwrite(r"D:\HBO\MinorAi\test\denoised.png", denoised[0]*255)
         cv2.imwrite(r"D:\HBO\MinorAi\test\denoised_original.png", original_denoise[0]*255)
         cv2.imwrite(r"D:\HBO\MinorAi\test\bicubic.png", cv2.resize(image[0], (pred[0].shape[1],pred[0].shape[0]), interpolation=cv2.INTER_CUBIC)*255)
@@ -219,7 +218,8 @@ class SuperResModel:
             model.set_weights(existing_weights)
         model.summary()
         model.compile(optimizer = optimizer, loss = self.L1Loss)
-        data = self.Utils.LoadH5File(X_train_path)/255
+        data = self.Utils.LoadH5File(X_train_path)
+        data = data / 255
         model.fit(data,
         data,
         batch_size = 5,
@@ -343,23 +343,23 @@ class SuperResModel:
         return count * 20
 
 model = SuperResModel()
-optim_args = {
-    "learning_rate" : 1e-4,
-    "beta_1" : 0.9,
-    "beta_2" : 0.999,
-    "epsilon" : 1e-6
-}
-model_args = {
-    "model" : tf.keras.Sequential([model.Resampler(), model.EDSR()], name= "CAR_EDSR"),
-    "X_train_path" : r"D:\HBO\MinorAi\PickleFiles\train_lr.h5",
-    "y_train_path" : r"D:\HBO\MinorAi\PickleFiles\train_lr.h5",
-    "num_of_epochs" : 100,
-    "logsdir" : "car_edsr_31_5",
-    "checkpoint_filepath" : "super_res_car_edsr",
-    "existing_weights" : None,
-    "load_weights" : False,
-    "optimizer" : tf.keras.optimizers.Adam(**optim_args),
-}
-#model.PredictAndShowImage(model.loadModel('super_res_car_edsr').layers[1], data_path=r"D:\HBO\MinorAi\test", read_from_directory = True)
+# optim_args = {
+#     "learning_rate" : 1e-4,
+#     "beta_1" : 0.9,
+#     "beta_2" : 0.999,
+#     "epsilon" : 1e-6
+# }
+# model_args = {
+#     "model" : tf.keras.Sequential([model.Resampler(), model.EDSR()], name= "CAR_EDSR"),
+#     "X_train_path" : r"D:\HBO\MinorAi\PickleFiles\train_lr.h5",
+#     "y_train_path" : r"D:\HBO\MinorAi\PickleFiles\train_lr.h5",
+#     "num_of_epochs" : 100,
+#     "logsdir" : "car_edsr_31_5",
+#     "checkpoint_filepath" : "super_res_car_edsr",
+#     "existing_weights" : None,
+#     "load_weights" : False,
+#     "optimizer" : tf.keras.optimizers.Adam(**optim_args),
+# }
+model.PredictAndShowImage(model.loadModel('super_res_car_edsr').layers[1], data_path=r"D:\HBO\MinorAi\test", read_from_directory = True)
 #model.TrainModel(**model_args)
-model.TrainCAR(**model_args)
+#model.TrainCAR(**model_args)

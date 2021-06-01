@@ -220,8 +220,8 @@ class Utils:
     Returns:
         (array) : image with reversed colors
     """
-    def ReverseColors(self,image):
-        return np.array(cv2.cvtColor(np.float32(image), cv2.COLOR_BGR2RGB))
+    def ReverseColors(self,image, reverse_type = cv2.COLOR_BGR2RGB):
+        return np.array(cv2.cvtColor(np.float32(image), reverse_type))
 
 
     """Adds noise to an array of images
