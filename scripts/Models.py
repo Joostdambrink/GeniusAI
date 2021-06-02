@@ -9,8 +9,9 @@ from ResidualBlock import ResidualBlock
 from CustomSchedular import CustomLearningRateScheduler
 from Utils import Utils
 import matplotlib.pyplot as plt
+from CustomLayers import DownSample, UpSample
 
-class SuperResModel:
+class SuperResModels:
     def __init__(self):
         self.Utils = Utils()
 
@@ -50,7 +51,7 @@ class SuperResModel:
         denoiser = self.loadModel('denoiser', is_custom = False)
         denoised = denoiser.predict(pred)
         original_denoise = denoiser.predict(image)
-        cv2.imwrite(r"D:\HBO\MinorAi\test\prediction.png", pred[0]/255)
+        cv2.imwrite(r"D:\HBO\MinorAi\test\prediction.png", pred[0]*255)
         cv2.imwrite(r"D:\HBO\MinorAi\test\denoised.png", denoised[0]*255)
         cv2.imwrite(r"D:\HBO\MinorAi\test\denoised_original.png", original_denoise[0]*255)
         cv2.imwrite(r"D:\HBO\MinorAi\test\bicubic.png", cv2.resize(image[0], (pred[0].shape[1],pred[0].shape[0]), interpolation=cv2.INTER_CUBIC)*255)
@@ -163,45 +164,35 @@ class SuperResModel:
 
         return tf.keras.Model(inputs = inputs, outputs = output)
     
-    def Resampler(self):
+    def Resampler(self, batch_size):
         rb = ResidualBlock()
         inputs = Input(shape =[None,None,3])
         c1 = Conv2D(3, 3, padding = "same", activation = LeakyReLU())(inputs)
-        c2 = Conv2D(32,1,strides=(2,2), padding = "same")(c1)
-        #ref = ReflectionPadding2D()(c2)
-        c3 = Conv2D(128,1,strides=(2,2), padding = "same")(c2)
-        #ref = ReflectionPadding2D()(c3)
-        res_net = rb.ResBlock(c3,num_of_units=5, num_of_filters=128)
-        merged = Add()([res_net, c3])
-        lrelu = LeakyReLU()(merged)
-        #ref = ReflectionPadding2D()(lrelu)
-        c4 = Conv2D(128,1,strides=(2,2), padding = "same")(lrelu)
+        down1 = DownSample(2,64,array_shape = (batch_size,96,96,3))(c1)
+        down2 = DownSample(2,128,array_shape = (batch_size,96,96,3))(down1)
+        res_net = rb.ResBlock(down2,block_size = 5,num_of_blocks = 1, num_of_filters=128)
+        c4 = Conv2D(128,1,strides=(2,2), padding = "same")(res_net)
         c5 = Conv2D(256, 3, padding = "same", activation = LeakyReLU())(c4)
         c6 = Conv2D(256, 3, padding = "same", activation = LeakyReLU())(c5)
         c7 = Conv2D(256, 3, padding = "same", activation = LeakyReLU())(c6)
-        upsample = UpSampling2D()(c7)
-        c3 = Conv2D(3, 1,padding = "same")(upsample)
+        upsample = UpSample(2,256)(c7)
+        c3 = Conv2D(3, 1,padding = "same", activation = LeakyReLU())(upsample)
         model = tf.keras.Model(inputs = inputs, outputs = c3)
-        #model.summary()
         return model
     
     def EDSR(self):
         rb = ResidualBlock()
         inputs = Input(shape=[None,None,3])
         c1 = Conv2D(256, 3, padding = "same", activation = LeakyReLU())(inputs)
-        res_block = rb.ResBlock(c1,num_of_units = 32, num_of_filters = 256)
-        merged = Add()([res_block, c1])
-        lrelu = LeakyReLU()(merged)
-        up = UpSampling2D()(lrelu)
-        c2 = Conv2D(128, 1,padding = "same")(up)
-        up = UpSampling2D()(c2)
-        c3 = Conv2D(3, 1,padding = "same")(up)
+        res_block = rb.ResBlock(c1,block_size = 5,num_of_blocks = 1, num_of_filters=256)
+        upsample = UpSample(2,256)(res_block)
+        upsample2 = UpSample(2,256)(upsample)
+        c3 = Conv2D(3, 1,padding = "same")(upsample2)
         lrelu = LeakyReLU()(c3)
         model = tf.keras.Model(inputs = inputs, outputs = lrelu)
-        #model.summary()
         return model
 
-    def TrainCAR(self,model = None,
+    def TrainCAR(self,model = None,batch_size = 1,
     X_train_path = None , y_train_path = None,
     num_of_epochs = 100, checkpoint_filepath = None,
     existing_weights = None, load_weights = False,
@@ -222,7 +213,7 @@ class SuperResModel:
         data = data / 255
         model.fit(data,
         data,
-        batch_size = 5,
+        batch_size = batch_size,
         validation_split = 0.1,
         epochs= num_of_epochs,
         callbacks=[tensorboard, model_checkpoint_callback])
@@ -342,24 +333,26 @@ class SuperResModel:
             count += 1
         return count * 20
 
-model = SuperResModel()
-# optim_args = {
-#     "learning_rate" : 1e-4,
-#     "beta_1" : 0.9,
-#     "beta_2" : 0.999,
-#     "epsilon" : 1e-6
-# }
-# model_args = {
-#     "model" : tf.keras.Sequential([model.Resampler(), model.EDSR()], name= "CAR_EDSR"),
-#     "X_train_path" : r"D:\HBO\MinorAi\PickleFiles\train_lr.h5",
-#     "y_train_path" : r"D:\HBO\MinorAi\PickleFiles\train_lr.h5",
-#     "num_of_epochs" : 100,
-#     "logsdir" : "car_edsr_31_5",
-#     "checkpoint_filepath" : "super_res_car_edsr",
-#     "existing_weights" : None,
-#     "load_weights" : False,
-#     "optimizer" : tf.keras.optimizers.Adam(**optim_args),
-# }
-model.PredictAndShowImage(model.loadModel('super_res_car_edsr').layers[1], data_path=r"D:\HBO\MinorAi\test", read_from_directory = True)
+model = SuperResModels()
+batch_size = 15
+optim_args = {
+    "learning_rate" : 1e-4,
+    "beta_1" : 0.9,
+    "beta_2" : 0.999,
+    "epsilon" : 1e-6
+}
+model_args = {
+    "model" : tf.keras.Sequential([model.Resampler(batch_size), model.EDSR()], name= "CAR_EDSR"),
+    "X_train_path" : r"D:\HBO\MinorAi\PickleFiles\train_lr.h5",
+    "y_train_path" : r"D:\HBO\MinorAi\PickleFiles\train_lr.h5",
+    "num_of_epochs" : 100,
+    "logsdir" : "car_edsr_31_5",
+    "checkpoint_filepath" : "super_res_car_edsr",
+    "existing_weights" : None,
+    "load_weights" : False,
+    "optimizer" : tf.keras.optimizers.Adam(**optim_args),
+    "batch_size" : batch_size,
+}
+model.PredictAndShowImage(model.loadModel('super_res_edsr'), data_path=r"D:\HBO\MinorAi\test", read_from_directory = True)
 #model.TrainModel(**model_args)
 #model.TrainCAR(**model_args)
