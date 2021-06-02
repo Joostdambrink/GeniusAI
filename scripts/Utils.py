@@ -11,6 +11,7 @@ class Utils:
         self.train_hr = []
         self.test_lr = []
         self.test_hr = []
+        self.DIV2K_RGB_MEAN = np.array([0.4488, 0.4371, 0.4040]) * 255
     
     """Reads images from a directory
 
@@ -251,6 +252,12 @@ class Utils:
     def Upscale(self, images, factor = 2):
         return np.array([cv2.resize(img,(img.shape[1] * factor, img.shape[0] * factor)) for img in images])
 
+    def normalize(self, x):
+        return (x - self.DIV2K_RGB_MEAN) / 127.5
+
+
+    def denormalize(self, x):
+        return x * 127.5 + self.DIV2K_RGB_MEAN
 if __name__ == "__main__":
     test = Utils()
     #test.SaveAsH5File(test.Upscale(test.DownscaleImages(test.LoadH5File(r"D:\HBO\MinorAi\PickleFiles\train_lr.h5"), factor = 4), factor = 4), r"D:\HBO\MinorAi\PickleFiles\train_lr_bicubic.h5")

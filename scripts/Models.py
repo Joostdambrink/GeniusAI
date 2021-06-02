@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Conv2D, UpSampling2D,PReLU,Input,LeakyReLU,Add,BatchNormalization,MaxPool2D, Activation
+from tensorflow.keras.layers import Conv2D, UpSampling2D,PReLU,Input,LeakyReLU,Add,BatchNormalization,MaxPool2D, Activation, Lambda
 from time import gmtime, strftime
 from tensorflow.keras.callbacks import TensorBoard
 import pickle
@@ -189,7 +189,8 @@ class SuperResModels:
         upsample2 = UpSample(2,256)(upsample)
         c3 = Conv2D(3, 1,padding = "same")(upsample2)
         lrelu = LeakyReLU()(c3)
-        model = tf.keras.Model(inputs = inputs, outputs = lrelu)
+        outputs = Lambda(self.Utils.denormalize)(lrelu)
+        model = tf.keras.Model(inputs = inputs, outputs = outputs)
         return model
 
     def TrainCAR(self,model = None,batch_size = 1,
@@ -211,9 +212,14 @@ class SuperResModels:
         model.compile(optimizer = optimizer, loss = self.L1Loss)
         data = self.Utils.LoadH5File(X_train_path)
         data = data / 255
-        model.fit(data,
-        data,
-        batch_size = batch_size,
+        data_gen = tf.keras.preprocessing.image.ImageDataGenerator(
+            horizontal_flip = True,
+            vertical_flip = True,
+            preprocessing_function= self.Utils.normalize
+        )
+        data_gen.fit(data)
+        model.fit(data_gen.flow(data,data, batch_size = batch_size),
+        steps_per_epoch = len(data) / batch_size,
         validation_split = 0.1,
         epochs= num_of_epochs,
         callbacks=[tensorboard, model_checkpoint_callback])
