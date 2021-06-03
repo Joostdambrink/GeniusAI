@@ -29,7 +29,7 @@ class SuperResModels:
         if is_custom:
             return tf.keras.models.load_model(model_path, custom_objects = {'L1Loss' : self.L1Loss})
         else:
-            return tf.keras.models.load_model(model_path)
+            return tf.keras.models.load_model(model_path, custom_objects={'normalize': Lambda(self.Utils.normalize), 'denormalize' : Lambda(self.Utils.denormalize)})
 
 
     """Predicts and shows input and prediction images
@@ -166,30 +166,31 @@ class SuperResModels:
     
     def Resampler(self, batch_size):
         rb = ResidualBlock()
-        inputs = Input(shape =[None,None,3])
+        inputs = Input(shape =[192,192,3], batch_size= batch_size)
         c1 = Conv2D(3, 3, padding = "same", activation = LeakyReLU())(inputs)
-        down1 = DownSample(2,64,array_shape = (batch_size,96,96,3))(c1)
-        down2 = DownSample(2,128,array_shape = (batch_size,96,96,3))(down1)
+        down1 = DownSample(2,64,array_shape = c1.shape, parent_name = "down_1")(c1)
+        down2 = DownSample(2,128,array_shape = down1.shape, parent_name = "down_1")(down1)
         res_net = rb.ResBlock(down2,block_size = 5,num_of_blocks = 1, num_of_filters=128)
-        c4 = Conv2D(128,1,strides=(2,2), padding = "same")(res_net)
-        c5 = Conv2D(256, 3, padding = "same", activation = LeakyReLU())(c4)
+        down2 = DownSample(2,256,array_shape = res_net.shape, parent_name = "down_1")(res_net)
+        c5 = Conv2D(256, 3, padding = "same", activation = LeakyReLU())(down2)
         c6 = Conv2D(256, 3, padding = "same", activation = LeakyReLU())(c5)
         c7 = Conv2D(256, 3, padding = "same", activation = LeakyReLU())(c6)
         upsample = UpSample(2,256)(c7)
         c3 = Conv2D(3, 1,padding = "same", activation = LeakyReLU())(upsample)
         model = tf.keras.Model(inputs = inputs, outputs = c3)
+        model.summary()
         return model
     
     def EDSR(self):
         rb = ResidualBlock()
         inputs = Input(shape=[None,None,3])
-        c1 = Conv2D(256, 3, padding = "same", activation = LeakyReLU())(inputs)
-        res_block = rb.ResBlock(c1,block_size = 5,num_of_blocks = 1, num_of_filters=256)
+        norm = Lambda(self.Utils.normalize)(inputs)
+        c1 = Conv2D(256, 3, padding = "same", activation = LeakyReLU())(norm)
+        res_block = rb.ResBlock(c1,block_size = 8,num_of_blocks = 4, num_of_filters=256)
         upsample = UpSample(2,256)(res_block)
         upsample2 = UpSample(2,256)(upsample)
-        c3 = Conv2D(3, 1,padding = "same")(upsample2)
-        lrelu = LeakyReLU()(c3)
-        outputs = Lambda(self.Utils.denormalize)(lrelu)
+        c3 = Conv2D(3, 1,padding = "same", activation = LeakyReLU())(upsample2)
+        outputs = Lambda(self.Utils.denormalize)(c3)
         model = tf.keras.Model(inputs = inputs, outputs = outputs)
         return model
 
@@ -215,12 +216,10 @@ class SuperResModels:
         data_gen = tf.keras.preprocessing.image.ImageDataGenerator(
             horizontal_flip = True,
             vertical_flip = True,
-            preprocessing_function= self.Utils.normalize
         )
         data_gen.fit(data)
         model.fit(data_gen.flow(data,data, batch_size = batch_size),
         steps_per_epoch = len(data) / batch_size,
-        validation_split = 0.1,
         epochs= num_of_epochs,
         callbacks=[tensorboard, model_checkpoint_callback])
 
@@ -340,7 +339,7 @@ class SuperResModels:
         return count * 20
 
 model = SuperResModels()
-batch_size = 15
+batch_size = 16
 optim_args = {
     "learning_rate" : 1e-4,
     "beta_1" : 0.9,
@@ -349,8 +348,8 @@ optim_args = {
 }
 model_args = {
     "model" : tf.keras.Sequential([model.Resampler(batch_size), model.EDSR()], name= "CAR_EDSR"),
-    "X_train_path" : r"D:\HBO\MinorAi\PickleFiles\train_lr.h5",
-    "y_train_path" : r"D:\HBO\MinorAi\PickleFiles\train_lr.h5",
+    "X_train_path" : r"D:\HBO\MinorAi\PickleFiles\X_train_192_192.h5",
+    "y_train_path" : r"D:\HBO\MinorAi\PickleFiles\X_train_192_192.h5",
     "num_of_epochs" : 100,
     "logsdir" : "car_edsr_31_5",
     "checkpoint_filepath" : "super_res_car_edsr",
@@ -359,6 +358,7 @@ model_args = {
     "optimizer" : tf.keras.optimizers.Adam(**optim_args),
     "batch_size" : batch_size,
 }
-model.PredictAndShowImage(model.loadModel('super_res_edsr'), data_path=r"D:\HBO\MinorAi\test", read_from_directory = True)
+# model.PredictAndShowImage(model.loadModel('super_res_car_edsr', is_custom=False).layers[1], data_path=r"D:\HBO\MinorAi\test", read_from_directory = True)
 #model.TrainModel(**model_args)
-#model.TrainCAR(**model_args)
+model.TrainCAR(**model_args)
+#print(model.loadModel('super_res_car_edsr', is_custom=False).summary())

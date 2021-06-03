@@ -2,33 +2,39 @@ import tensorflow as tf
 from tensorflow.keras.layers import Permute, Conv2D
 import numpy as np
 class PixelUnshuffle(tf.keras.layers.Layer):
-    def __init__(self, scale, array_shape = (1,96,96,32)):
+    def __init__(self, scale, array_shape = (1,96,96,32), parent_name = ""):
         super(PixelUnshuffle, self).__init__()
         self.scale = scale
         self.array_shape = array_shape
+        self.parent_name = parent_name
+        self.b , h , w , c = self.array_shape
+        self.output_channels = c * self.scale ** 2
+        self.output_height = int(h / self.scale)
+        self.output_width = int(w / self.scale)
+        self.reshape_1 = lambda x :  tf.reshape(x,[self.b ,c,self.output_height,self.scale, self.output_width, self.scale], name = self.parent_name + "reshape_1")
 
     def call(self, inputs):
-        b,h,w,c = self.array_shape
-        output_channels = c * self.scale ** 2
-        output_height = int(h / self.scale)
-        output_width = int(w / self.scale)
 
-        output_reshaped = tf.reshape(inputs,[b,c,output_height,self.scale, output_width, self.scale], name = "reshape_1")
-        output_permuted = Permute((1,2,4,6,3,5), name = "permute_1")((tf.expand_dims(output_reshaped, 0)))
-        output= tf.reshape(output_permuted, [b,output_channels,output_height, output_width], name = "reshape_2")
+        # c = inputs.shape[-1]
+        # self.b = 16
 
-        output = Permute((1,3,4,2))((tf.expand_dims(output, 0)))
-        output= tf.reshape(output, [b,output_height, output_width, output_channels], name = "reshape_2")
+
+        output_reshaped = self.reshape_1(inputs)
+        output_permuted = Permute((1,2,4,6,3,5), name = self.parent_name + "permute_1")((tf.expand_dims(output_reshaped, 0)))
+        output= tf.reshape(output_permuted, [self.b ,self.output_channels,self.output_height, self.output_width], name = self.parent_name + "reshape_2")
+
+        output = Permute((1,3,4,2), name = self.parent_name + "permute_2")((tf.expand_dims(output, 0)))
+        output= tf.reshape(output, [self.b ,self.output_height, self.output_width, self.output_channels], name = self.parent_name + "reshape_3")
 
         return output
 
 class DownSample(tf.keras.layers.Layer):
-    def __init__(self, scale, filters, ksize = 1, array_shape = (1,96,96,32)):
+    def __init__(self, scale, filters, ksize = 1, array_shape = (1,96,96,32), parent_name = ""):
         super(DownSample, self).__init__()
         self.downsample = tf.keras.Sequential(
             [
-                PixelUnshuffle(scale, array_shape = array_shape),
-                Conv2D(filters, ksize, strides = 1, padding = "same")
+                PixelUnshuffle(scale, array_shape = array_shape, parent_name = parent_name),
+                Conv2D(filters, ksize, strides = 1, padding = "same", name = parent_name + "conv_1")
             ]
         )
     

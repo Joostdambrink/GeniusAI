@@ -21,13 +21,15 @@ class Utils:
     Returns:
         (numpy array) : array containing all the images in the directory
     """
-    def ReadImages(self,path):
+    def ReadImages(self,path, is_array = True):
         images = []
         for filename in os.listdir(path):
             img = cv2.imread(os.path.join(path,filename))
             if img is not None:
                 images.append(np.array(img))
-        return np.array(images)
+        if is_array:
+            return np.array(images)
+        return images
 
 
     """crops images from an array
@@ -272,4 +274,4 @@ if __name__ == "__main__":
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
     # cv2.imwrite(r"D:\HBO\MinorAi\test" + "\\cropped.png", img[13])
-    test.ReadImages()
+    test.SaveAsH5File(test.GetCroppedImages(test.ReadImages(r"D:\HBO\MinorAi\Div2kx4\valid_hr", is_array = False), 192),r"D:\HBO\MinorAi\PickleFiles\X_train_192_192.h5", chunk_shape=(50,192,192,3))
