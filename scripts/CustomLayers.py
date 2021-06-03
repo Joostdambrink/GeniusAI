@@ -27,6 +27,8 @@ class PixelUnshuffle(tf.keras.layers.Layer):
         output= tf.reshape(output, [self.b ,self.output_height, self.output_width, self.output_channels], name = self.parent_name + "reshape_3")
 
         return output
+    def get_config(self):
+        return {"scale": self.scale, "array_shape" : self.array_shape}
 
 class DownSample(tf.keras.layers.Layer):
     def __init__(self, scale, filters, ksize = 1, array_shape = (1,96,96,32), parent_name = ""):
@@ -52,3 +54,5 @@ class UpSample(tf.keras.layers.Layer):
     def call(self, inputs):
         return tf.nn.depth_to_space(self.conv(inputs), self.factor)
 
+    def get_config(self):
+        return {"factor": self.factor, "num_of_filters" : self.num_of_filters}

@@ -10,6 +10,7 @@ from CustomSchedular import CustomLearningRateScheduler
 from Utils import Utils
 import matplotlib.pyplot as plt
 from CustomLayers import DownSample, UpSample
+from PIL import Image
 
 class SuperResModels:
     def __init__(self):
@@ -51,15 +52,15 @@ class SuperResModels:
         denoiser = self.loadModel('denoiser', is_custom = False)
         denoised = denoiser.predict(pred)
         original_denoise = denoiser.predict(image)
-        cv2.imwrite(r"D:\HBO\MinorAi\test\prediction.png", pred[0]*255)
-        cv2.imwrite(r"D:\HBO\MinorAi\test\denoised.png", denoised[0]*255)
-        cv2.imwrite(r"D:\HBO\MinorAi\test\denoised_original.png", original_denoise[0]*255)
-        cv2.imwrite(r"D:\HBO\MinorAi\test\bicubic.png", cv2.resize(image[0], (pred[0].shape[1],pred[0].shape[0]), interpolation=cv2.INTER_CUBIC)*255)
-        cv2.imwrite(r"D:\HBO\MinorAi\test\scaling_2x.png", cv2.resize(pred[0], (pred[0].shape[1]//2,pred[0].shape[0]//2), interpolation=cv2.INTER_CUBIC)*255)
-        cv2.imwrite(r"D:\HBO\MinorAi\test\sharp.png", np.float32(self.Utils.SharpenImage(pred[0])))
-        cv2.imwrite(r"D:\HBO\MinorAi\test\sharp_denoise.png", np.float32(self.Utils.SharpenImage(denoised[0])))
-        cv2.imwrite(r"D:\HBO\MinorAi\test\smooth.png", np.float32(self.Utils.SmoothImage(pred[0])))
-        images = [ ("prediction", self.Utils.ReverseColors(pred[0])), ("after sharpening", self.Utils.SharpenImage(self.Utils.ReverseColors(pred[0]))), ("denoised", self.Utils.ReverseColors(denoised[0])), ("upscaled bicubic", self.Utils.ReverseColors(cv2.resize(image[0], (pred[0].shape[1],pred[0].shape[0]), interpolation=cv2.INTER_CUBIC)))]
+        # cv2.imwrite(r"D:\HBO\MinorAi\test\prediction.png", pred[0]/255)
+        # cv2.imwrite(r"D:\HBO\MinorAi\test\denoised.png", denoised[0]*255)
+        # cv2.imwrite(r"D:\HBO\MinorAi\test\denoised_original.png", original_denoise[0]*255)
+        # cv2.imwrite(r"D:\HBO\MinorAi\test\bicubic.png", cv2.resize(image[0], (pred[0].shape[1],pred[0].shape[0]), interpolation=cv2.INTER_CUBIC)*255)
+        # cv2.imwrite(r"D:\HBO\MinorAi\test\scaling_2x.png", cv2.resize(pred[0], (pred[0].shape[1]//2,pred[0].shape[0]//2), interpolation=cv2.INTER_CUBIC)*255)
+        # cv2.imwrite(r"D:\HBO\MinorAi\test\sharp.png", np.float32(self.Utils.SharpenImage(pred[0])))
+        # cv2.imwrite(r"D:\HBO\MinorAi\test\sharp_denoise.png", np.float32(self.Utils.SharpenImage(denoised[0])))
+        # cv2.imwrite(r"D:\HBO\MinorAi\test\smooth.png", np.float32(self.Utils.SmoothImage(pred[0])))
+        images = [ ("prediction", self.Utils.ReverseColors(pred[0] / 255)), ("after sharpening", self.Utils.SharpenImage(self.Utils.ReverseColors(pred[0]))), ("denoised", self.Utils.ReverseColors(denoised[0])), ("upscaled bicubic", self.Utils.ReverseColors(cv2.resize(image[0], (pred[0].shape[1],pred[0].shape[0]), interpolation=cv2.INTER_CUBIC)))]
         rows = 1
         cols = 4
         axes=[]
@@ -170,7 +171,7 @@ class SuperResModels:
         c1 = Conv2D(3, 3, padding = "same", activation = LeakyReLU())(inputs)
         down1 = DownSample(2,64,array_shape = c1.shape, parent_name = "down_1")(c1)
         down2 = DownSample(2,128,array_shape = down1.shape, parent_name = "down_1")(down1)
-        res_net = rb.ResBlock(down2,block_size = 5,num_of_blocks = 1, num_of_filters=128)
+        res_net = rb.ResBlock(down2,num_of_blocks = 1, num_of_filters=128)
         down2 = DownSample(2,256,array_shape = res_net.shape, parent_name = "down_1")(res_net)
         c5 = Conv2D(256, 3, padding = "same", activation = LeakyReLU())(down2)
         c6 = Conv2D(256, 3, padding = "same", activation = LeakyReLU())(c5)
@@ -183,13 +184,18 @@ class SuperResModels:
     
     def EDSR(self):
         rb = ResidualBlock()
-        inputs = Input(shape=[None,None,3])
+        inputs = Input(shape=[None,None,3], batch_size=None)
         norm = Lambda(self.Utils.normalize)(inputs)
-        c1 = Conv2D(256, 3, padding = "same", activation = LeakyReLU())(norm)
-        res_block = rb.ResBlock(c1,block_size = 8,num_of_blocks = 4, num_of_filters=256)
-        upsample = UpSample(2,256)(res_block)
-        upsample2 = UpSample(2,256)(upsample)
-        c3 = Conv2D(3, 1,padding = "same", activation = LeakyReLU())(upsample2)
+
+        c1  = res_block = Conv2D(64, 3, padding = "same")(norm)
+        res_block = rb.ResBlock(res_block,num_of_blocks = 16, num_of_filters=64, residual_scaling = 0.1)
+        res_block = Conv2D(64, 3, padding='same')(res_block)
+        added = Add()([c1, res_block])
+
+        upsample = UpSample(2,64)(added)
+        upsample = UpSample(2,64)(upsample)
+        c3 = Conv2D(3, 3,padding = "same")(upsample)
+        
         outputs = Lambda(self.Utils.denormalize)(c3)
         model = tf.keras.Model(inputs = inputs, outputs = outputs)
         return model
@@ -339,26 +345,58 @@ class SuperResModels:
         return count * 20
 
 model = SuperResModels()
-batch_size = 16
-optim_args = {
-    "learning_rate" : 1e-4,
-    "beta_1" : 0.9,
-    "beta_2" : 0.999,
-    "epsilon" : 1e-6
-}
-model_args = {
-    "model" : tf.keras.Sequential([model.Resampler(batch_size), model.EDSR()], name= "CAR_EDSR"),
-    "X_train_path" : r"D:\HBO\MinorAi\PickleFiles\X_train_192_192.h5",
-    "y_train_path" : r"D:\HBO\MinorAi\PickleFiles\X_train_192_192.h5",
-    "num_of_epochs" : 100,
-    "logsdir" : "car_edsr_31_5",
-    "checkpoint_filepath" : "super_res_car_edsr",
-    "existing_weights" : None,
-    "load_weights" : False,
-    "optimizer" : tf.keras.optimizers.Adam(**optim_args),
-    "batch_size" : batch_size,
-}
+# batch_size = 16
+# optim_args = {
+#     "learning_rate" : 1e-4,
+#     "beta_1" : 0.9,
+#     "beta_2" : 0.999,
+#     "epsilon" : 1e-8
+# }
+# model_args = {
+#     "model" : tf.keras.Sequential([model.Resampler(batch_size), model.EDSR()], name= "CAR_EDSR"),
+#     "X_train_path" : r"D:\HBO\MinorAi\PickleFiles\X_train_192_192.h5",
+#     "y_train_path" : r"D:\HBO\MinorAi\PickleFiles\X_train_192_192.h5",
+#     "num_of_epochs" : 100,
+#     "logsdir" : "car_edsr_31_5",
+#     "checkpoint_filepath" : "super_res_car_edsr",
+#     "existing_weights" : None,
+#     "load_weights" : False,
+#     "optimizer" : tf.keras.optimizers.Adam(**optim_args),
+#     "batch_size" : batch_size,
+# }
 # model.PredictAndShowImage(model.loadModel('super_res_car_edsr', is_custom=False).layers[1], data_path=r"D:\HBO\MinorAi\test", read_from_directory = True)
 #model.TrainModel(**model_args)
-model.TrainCAR(**model_args)
+#model.TrainCAR(**model_args)
 #print(model.loadModel('super_res_car_edsr', is_custom=False).summary())
+def resolve_single(model, lr):
+    return resolve(model, tf.expand_dims(lr, axis=0))[0]
+
+
+def resolve(model, lr_batch):
+    lr_batch = tf.cast(lr_batch, tf.float32)
+    sr_batch = model(lr_batch)
+    sr_batch = tf.clip_by_value(sr_batch, 0, 255)
+    sr_batch = tf.round(sr_batch)
+    sr_batch = tf.cast(sr_batch, tf.uint8)
+    return sr_batch
+
+def plot_sample(lr, sr):
+    plt.figure(figsize=(20, 10))
+
+    images = [lr, sr]
+    titles = ['LR', f'SR (x{sr.shape[0] // lr.shape[0]})']
+
+    for i, (img, title) in enumerate(zip(images, titles)):
+        plt.subplot(1, 2, i+1)
+        plt.title(title)
+        plt.xticks([])
+        plt.yticks([])
+        plt.imshow(img)
+    plt.show()
+x = model.EDSR()
+x.load_weights(r"weights\edsr-16-x4\weights.h5")
+lr = cv2.cvtColor(np.array(Image.open(r"D:\HBO\MinorAi\test\Capture.png")), cv2.COLOR_BGRA2BGR)
+sr = resolve_single(x, lr)
+
+plot_sample(lr,sr)
+

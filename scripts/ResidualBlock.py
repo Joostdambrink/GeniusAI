@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Conv2D,PReLU,Add,Input,LeakyReLU
+from tensorflow.keras.layers import Conv2D,PReLU,Add,Input,LeakyReLU, Lambda
 from tensorflow.keras.initializers import Constant
 class ResidualBlock:
     def __init__(self):
@@ -15,21 +15,12 @@ class ResidualBlock:
     Returns:
         (keras layer) : the last layer of the residual block
     """
-    def ResBlock(self,input_data,block_size = 6,num_of_blocks = 6, num_of_filters = 16, kernel_size = (3,3), inc_filters = False):
+    def ResBlock(self,input_data, num_of_blocks = 6, num_of_filters = 16, kernel_size = (3,3), residual_scaling = None):
         
         res_unit = input_data
         for i in range(num_of_blocks):
-            for j in range(block_size):
-                res_input = res_unit
-                if i != 0 and j == 0 and inc_filters:
-                    num_of_filters *= 2
-                    res_input = tf.keras.layers.ZeroPadding2D(padding=1)(res_unit)
-                if i == 0 and j == 0:
-                    res_unit = self.ResidualUnit(input_data,num_of_filters, kernel_size = kernel_size)
-                else:
-                    res_unit = self.ResidualUnit(res_unit, num_of_filters, kernel_size = kernel_size)
-                    res_unit = Add()([res_input, res_unit])
-                    res_unit = LeakyReLU()(res_unit)  
+            res_unit = self.ResidualUnit(res_unit, num_of_filters, residual_scaling, kernel_size = kernel_size)
+
         
         return res_unit
 
@@ -43,8 +34,10 @@ class ResidualBlock:
     Returns:
         (keras layer) : result of the last layer in the unit
     """
-    def ResidualUnit(self,input_data, num_of_filters, kernel_size = (3,3), strides = (1,1)):
-        x = Conv2D(num_of_filters,kernel_size,padding="same", strides= strides)(input_data)
-        x = LeakyReLU()(x)
+    def ResidualUnit(self,input_data, num_of_filters, residual_scaling, kernel_size = (3,3), strides = (1,1)):
+        x = Conv2D(num_of_filters,kernel_size,padding="same", strides= strides, activation = LeakyReLU())(input_data)
         x = Conv2D(num_of_filters,kernel_size,padding = "same",strides= strides)(x)
+        if residual_scaling:
+            x = Lambda(lambda t: t * residual_scaling) (x)
+        x = Add()([input_data, x])
         return x

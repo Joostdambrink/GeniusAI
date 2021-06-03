@@ -48,9 +48,9 @@ class Utils:
                 for b in range(0,i.shape[1],crop_size):
                     image = i[a:a+crop_size,b:b+crop_size]
                     if image.shape == (crop_size,crop_size,3): 
-                        cropped_images.append(image)
+                        yield image
 
-        return (np.array(cropped_images))
+        # return (np.array(cropped_images))
 
 
     """rotates given images to given rotation
@@ -149,13 +149,14 @@ class Utils:
         suffix (str, optional) : type of file to save to. Defaults to ".h5".
         num_of_splits (int, optional) : the number of splits of data. Defaults to 5.
     """
-    def SaveInBatches(self, data, directory,prefix = "images", suffix = ".h5", num_of_splits = 5):
-        step_size = len(data) // num_of_splits
-        current_split = 1
-        for i in range(0,len(data), step_size):
-            data_sliced = data[i : i+step_size]
-            self.SaveAsH5File(data_sliced, directory + "\\" + prefix + "_" + str(current_split) + suffix )
-            current_split += 1
+    def SaveInBatches(self, length,data_gen, directory,prefix = "images", suffix = ".h5", num_of_splits = 5):
+        step_size = length // num_of_splits
+        data_sliced = []
+        for i in range(num_of_splits):
+            data_sliced.clear()
+            for _ in range(step_size):
+                data_sliced.append(next(data_gen))
+            self.SaveAsH5File(np.array(data_sliced, dtype=np.float32), directory + "\\" + prefix + "_" + str(i) + suffix , chunk_shape = (50,48,48,3))
 
 
     """shows the first images of x and y
@@ -268,10 +269,12 @@ if __name__ == "__main__":
     # cv2.imshow("image", x[4] / 255)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
+
     # x = test.ReadImages(r"D:\HBO\MinorAi\test")
     # img = test.GetCroppedImages(x,64*4)
     # cv2.imshow("img", img[13])
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
     # cv2.imwrite(r"D:\HBO\MinorAi\test" + "\\cropped.png", img[13])
-    test.SaveAsH5File(test.GetCroppedImages(test.ReadImages(r"D:\HBO\MinorAi\Div2kx4\valid_hr", is_array = False), 192),r"D:\HBO\MinorAi\PickleFiles\X_train_192_192.h5", chunk_shape=(50,192,192,3))
+    images = test.ReadImages(r"D:\HBO\MinorAi\Div2kx4\train_lr", is_array = False)
+    test.SaveInBatches(49520,test.GetCroppedImages(images, 48), r"D:\HBO\MinorAi\PickleFiles", prefix = "X_train_lr")
