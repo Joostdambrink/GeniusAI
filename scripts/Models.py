@@ -1,78 +1,12 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Conv2D, UpSampling2D,PReLU,Input,LeakyReLU,Add,BatchNormalization,MaxPool2D, Activation, Lambda
-from time import gmtime, strftime
-from tensorflow.keras.callbacks import TensorBoard
-import pickle
-import numpy as np
-import cv2
+from tensorflow.keras.layers import Conv2D, UpSampling2D,Input,LeakyReLU,Add,BatchNormalization,MaxPool2D, Lambda
 from ResidualBlock import ResidualBlock
-from CustomSchedular import CustomLearningRateScheduler
 from Utils import Utils
-import matplotlib.pyplot as plt
 from CustomLayers import DownSample, UpSample
-from PIL import Image
 
 class SuperResModels:
     def __init__(self):
         self.Utils = Utils()
-
-
-    """Loads keras model from path
-    
-    Args:
-        model_path (str) : path of model to load
-        compile (bool, optional) : compile model automatically True or False. defaults to True
-    
-    Returns:
-        (keras model) : the loaded model.
-    """
-    def loadModel(self,model_path, is_custom = True):
-        if is_custom:
-            return tf.keras.models.load_model(model_path, custom_objects = {'L1Loss' : self.L1Loss})
-        else:
-            return tf.keras.models.load_model(model_path, custom_objects={'normalize': Lambda(self.Utils.normalize), 'denormalize' : Lambda(self.Utils.denormalize)})
-
-
-    """Predicts and shows input and prediction images
-
-    Args:
-        model (keras model) : keras model that does the prediction
-        data_path (str) : path of the input data
-        read_from_directory (bool, optional) : whether to read images from a directory or from a file. defaults to False
-    """
-    def PredictAndShowImage(self, model, data_path, read_from_directory = False):
-        data = []
-        if read_from_directory:
-            data = self.Utils.ReadImages(data_path)
-        else:
-            data = self.Utils.LoadH5File(data_path)
-        data = data/255
-        image = np.expand_dims(data[0], axis = 0)
-        pred = model.predict(image)
-        denoiser = self.loadModel('denoiser', is_custom = False)
-        denoised = denoiser.predict(pred)
-        original_denoise = denoiser.predict(image)
-        # cv2.imwrite(r"D:\HBO\MinorAi\test\prediction.png", pred[0]/255)
-        # cv2.imwrite(r"D:\HBO\MinorAi\test\denoised.png", denoised[0]*255)
-        # cv2.imwrite(r"D:\HBO\MinorAi\test\denoised_original.png", original_denoise[0]*255)
-        # cv2.imwrite(r"D:\HBO\MinorAi\test\bicubic.png", cv2.resize(image[0], (pred[0].shape[1],pred[0].shape[0]), interpolation=cv2.INTER_CUBIC)*255)
-        # cv2.imwrite(r"D:\HBO\MinorAi\test\scaling_2x.png", cv2.resize(pred[0], (pred[0].shape[1]//2,pred[0].shape[0]//2), interpolation=cv2.INTER_CUBIC)*255)
-        # cv2.imwrite(r"D:\HBO\MinorAi\test\sharp.png", np.float32(self.Utils.SharpenImage(pred[0])))
-        # cv2.imwrite(r"D:\HBO\MinorAi\test\sharp_denoise.png", np.float32(self.Utils.SharpenImage(denoised[0])))
-        # cv2.imwrite(r"D:\HBO\MinorAi\test\smooth.png", np.float32(self.Utils.SmoothImage(pred[0])))
-        images = [ ("prediction", self.Utils.ReverseColors(pred[0] / 255)), ("after sharpening", self.Utils.SharpenImage(self.Utils.ReverseColors(pred[0]))), ("denoised", self.Utils.ReverseColors(denoised[0])), ("upscaled bicubic", self.Utils.ReverseColors(cv2.resize(image[0], (pred[0].shape[1],pred[0].shape[0]), interpolation=cv2.INTER_CUBIC)))]
-        rows = 1
-        cols = 4
-        axes=[]
-        fig=plt.figure()
-        for a in range(rows*cols):
-            axes.append( fig.add_subplot(rows, cols, a+1) )
-            axes[-1].set_title(images[a][0]) 
-            plt.imshow(images[a][1])
-
-        fig.tight_layout()    
-        plt.show()
-
 
     """
         Model:
@@ -146,24 +80,26 @@ class SuperResModels:
             returns a Keras model with all these layers.
     """
     def DenoisingModel(self):
+        rb = ResidualBlock()
         inputs = Input(shape =[None,None,3])
-        c1 = Conv2D(32, (3,3), activation = 'relu', padding = 'same')(inputs)
+        c1 = Conv2D(64, (7,7), activation = 'relu', padding = 'same')(inputs)
         bn1 = BatchNormalization()(c1)
         p2 = MaxPool2D(pool_size = (2,2), padding = 'same')(bn1)
-        c2 = Conv2D(32, (3,3), activation = 'relu', padding = 'same')(p2)
+        c2 = Conv2D(64, (5,5), activation = 'relu', padding = 'same')(p2)
         bn2 = BatchNormalization()(c2)
-        encoded = MaxPool2D(pool_size = (2,2), padding = 'same')(bn2)
+        res_net = rb.ResBlock(bn2, num_of_blocks= 5, num_of_filters = 64)
+        encoded = MaxPool2D(pool_size = (2,2), padding = 'same')(res_net)
 
-        c3 = Conv2D(32, (3,3), activation = 'relu', padding = 'same')(encoded)
+        c3 = Conv2D(64, (3,3), activation = 'relu', padding = 'same')(encoded)
         bn3 = BatchNormalization()(c3)
         up1 = UpSampling2D()(bn3)
-        c4 = Conv2D(32, (3,3), activation = 'relu', padding = 'same')(up1)
+        c4 = Conv2D(64, (3,3), activation = 'relu', padding = 'same')(up1)
         bn4 = BatchNormalization()(c4)
         up2 = UpSampling2D()(bn4)
         decoded = Conv2D(3, (3,3), activation = 'sigmoid', padding = 'same')(up2)
-        output = Activation("softmax")(decoded)
+        output = LeakyReLU()(decoded)
 
-        return tf.keras.Model(inputs = inputs, outputs = output)
+        return tf.keras.Model(inputs = inputs, outputs = output, name = "denoiser_autoenc" )
     
     def Resampler(self, batch_size):
         rb = ResidualBlock()
@@ -187,74 +123,19 @@ class SuperResModels:
         inputs = Input(shape=[None,None,3], batch_size=None)
         norm = Lambda(self.Utils.normalize)(inputs)
 
-        c1  = res_block = Conv2D(64, 3, padding = "same")(norm)
-        res_block = rb.ResBlock(res_block,num_of_blocks = 16, num_of_filters=64, residual_scaling = 0.1)
-        res_block = Conv2D(64, 3, padding='same')(res_block)
+        c1  = res_block = Conv2D(256, 3, padding = "same")(norm)
+        res_block = rb.ResBlock(res_block,num_of_blocks = 16, num_of_filters=256, residual_scaling = 0.1)
+        res_block = Conv2D(256, 3, padding='same')(res_block)
         added = Add()([c1, res_block])
 
-        upsample = UpSample(2,64)(added)
-        upsample = UpSample(2,64)(upsample)
+        upsample = UpSample(2,256)(added)
+        upsample = UpSample(2,256)(upsample)
         c3 = Conv2D(3, 3,padding = "same")(upsample)
         
         outputs = Lambda(self.Utils.denormalize)(c3)
         model = tf.keras.Model(inputs = inputs, outputs = outputs)
         return model
 
-    def TrainCAR(self,model = None,batch_size = 1,
-    X_train_path = None , y_train_path = None,
-    num_of_epochs = 100, checkpoint_filepath = None,
-    existing_weights = None, load_weights = False,
-    optimizer = None,logsdir = None, **args):
-        tensorboard = TensorBoard(log_dir = logsdir)
-        early_stop = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=5)
-        model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-        filepath=checkpoint_filepath,
-        save_weights_only=False,
-        monitor='loss',
-        mode='min',
-        save_best_only=False)
-        if load_weights and not existing_weights == None:
-            model.set_weights(existing_weights)
-        model.summary()
-        model.compile(optimizer = optimizer, loss = self.L1Loss)
-        data = self.Utils.LoadH5File(X_train_path)
-        data = data / 255
-        data_gen = tf.keras.preprocessing.image.ImageDataGenerator(
-            horizontal_flip = True,
-            vertical_flip = True,
-        )
-        data_gen.fit(data)
-        model.fit(data_gen.flow(data,data, batch_size = batch_size),
-        steps_per_epoch = len(data) / batch_size,
-        epochs= num_of_epochs,
-        callbacks=[tensorboard, model_checkpoint_callback])
-
-    """drops learning rate by 50% each 20 epochs
-
-    Args:
-        epoch_index (int) : index of current epoch
-        lr (float) : current learning rate
-
-    Returns:
-        (float) : modified learning rate
-    """
-    def schedular(self, epoch_index, lr):
-        if epoch_index % 20 == 0 and epoch_index > 0:
-            return lr * 0.5
-        return lr
-
-
-    """L1 loss function
-
-    Args:
-        y_true (numpy array / tf tensor) : the observed value of y
-        y_pred (numpy array / tf tensor) : the predicted value of y
-
-    Returns:
-        (float) : the absolute value of the difference between y_true and y_pred
-    """
-    def L1Loss(self, y_true,y_pred):
-        return abs(y_true - y_pred)
 
     """loads a model and gets its weights
 
@@ -268,135 +149,4 @@ class SuperResModels:
     def GetModelWeights(self,model_path):
         model = self.loadModel(model_path)
         return model.get_weights()
-
-
-    """Trains keras model on input data
-
-    Args:
-        X_train_path (str) : path of low res training data
-        y_train_path (str) : path of high res training data
-        num_of_epochs (Int, optional) : number of training epochs
-    """
-    def TrainModel(self,model = None,X_train_path = None , y_train_path = None, num_of_epochs = 100, checkpoint_filepath = None,existing_weights = None, load_weights = False, optimizer = None,logsdir = None, **args):
-        tensorboard = TensorBoard(log_dir = logsdir)
-        early_stop = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=5)
-        model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-        filepath=checkpoint_filepath,
-        save_weights_only=False,
-        monitor='loss',
-        mode='min',
-        save_best_only=False)
-        if load_weights and not existing_weights == None:
-            model.set_weights(existing_weights)
-        model.summary()
-        model.compile(optimizer = optimizer, loss = "mse")
-        model.fit(self.Utils.LoadH5File(X_train_path)/255,
-        self.Utils.LoadH5File(y_train_path)/255,
-        batch_size = 5,
-        validation_split = 0.1,
-        epochs= num_of_epochs,
-        callbacks=[tensorboard, model_checkpoint_callback])
-    
-
-    """Resumes training after sudden stop of a model
-    
-    Args:
-        X_train_path (str) : X training data path
-        y_train_path (str) : y training data path
-        model_path (str) : path of model to load
-        checkpoint_filepath (str) : path to save the model
-        num_of_epochs (int) : number of training epochs
-    """
-    def ResumeTraining(self,X_train_path, y_train_path,model_path,checkpoint_filepath = None, num_of_epochs = 100):
-        tensorboard = TensorBoard(log_dir = "logs/latest_model_{}".format(strftime("%d_%m_%Y", gmtime())))
-        early_stop = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=5)
-        model_checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-        filepath=checkpoint_filepath,
-        save_weights_only=False,
-        monitor='loss',
-        mode='min',
-        save_best_only=False)
-        model = self.loadModel(model_path)
-        latest_epoch = self.GetEpochFromLearningRate(K.eval(model.optimizer.lr))
-        model.fit(self.Utils.LoadH5File(X_train_path)/255,
-        self.Utils.LoadH5File(y_train_path)/255,
-        batch_size = 10,
-        epochs= num_of_epochs,
-        initial_epoch = latest_epoch,
-        callbacks=[CustomLearningRateScheduler(self.schedular), early_stop, tensorboard, model_checkpoint_callback])
-        
-
-
-    """Calculates epoch index based on learning rate
-
-    Args:
-        lr (float) : learning rate
-
-    Returns:
-        (int) : epoch number
-    """
-    def GetEpochFromLearningRate(self,lr):
-        count = 0
-        start_value = 0.10000
-        lr_rounded = round(lr,5)
-        while start_value > lr_rounded:
-            start_value /= 2
-            count += 1
-        return count * 20
-
-model = SuperResModels()
-# batch_size = 16
-# optim_args = {
-#     "learning_rate" : 1e-4,
-#     "beta_1" : 0.9,
-#     "beta_2" : 0.999,
-#     "epsilon" : 1e-8
-# }
-# model_args = {
-#     "model" : tf.keras.Sequential([model.Resampler(batch_size), model.EDSR()], name= "CAR_EDSR"),
-#     "X_train_path" : r"D:\HBO\MinorAi\PickleFiles\X_train_192_192.h5",
-#     "y_train_path" : r"D:\HBO\MinorAi\PickleFiles\X_train_192_192.h5",
-#     "num_of_epochs" : 100,
-#     "logsdir" : "car_edsr_31_5",
-#     "checkpoint_filepath" : "super_res_car_edsr",
-#     "existing_weights" : None,
-#     "load_weights" : False,
-#     "optimizer" : tf.keras.optimizers.Adam(**optim_args),
-#     "batch_size" : batch_size,
-# }
-# model.PredictAndShowImage(model.loadModel('super_res_car_edsr', is_custom=False).layers[1], data_path=r"D:\HBO\MinorAi\test", read_from_directory = True)
-#model.TrainModel(**model_args)
-#model.TrainCAR(**model_args)
-#print(model.loadModel('super_res_car_edsr', is_custom=False).summary())
-def resolve_single(model, lr):
-    return resolve(model, tf.expand_dims(lr, axis=0))[0]
-
-
-def resolve(model, lr_batch):
-    lr_batch = tf.cast(lr_batch, tf.float32)
-    sr_batch = model(lr_batch)
-    sr_batch = tf.clip_by_value(sr_batch, 0, 255)
-    sr_batch = tf.round(sr_batch)
-    sr_batch = tf.cast(sr_batch, tf.uint8)
-    return sr_batch
-
-def plot_sample(lr, sr):
-    plt.figure(figsize=(20, 10))
-
-    images = [lr, sr]
-    titles = ['LR', f'SR (x{sr.shape[0] // lr.shape[0]})']
-
-    for i, (img, title) in enumerate(zip(images, titles)):
-        plt.subplot(1, 2, i+1)
-        plt.title(title)
-        plt.xticks([])
-        plt.yticks([])
-        plt.imshow(img)
-    plt.show()
-x = model.EDSR()
-x.load_weights(r"weights\edsr-16-x4\weights.h5")
-lr = cv2.cvtColor(np.array(Image.open(r"D:\HBO\MinorAi\test\Capture.png")), cv2.COLOR_BGRA2BGR)
-sr = resolve_single(x, lr)
-
-plot_sample(lr,sr)
 
