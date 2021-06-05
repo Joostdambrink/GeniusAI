@@ -1,11 +1,15 @@
-import datetime as datetime
+from datetime import datetime
 import tensorflow as tf
 from tensorflow.keras.callbacks import TensorBoard
 from CustomSchedular import CustomLearningRateScheduler
 from Models import SuperResModels
+from Utils import Utils
+from test import TestModels
 
 class TrainModels:
-    
+    def __init__(self):
+        self.Utils = Utils()
+
     """drops learning rate by 50% each 20 epochs
 
     Args:
@@ -59,7 +63,11 @@ class TrainModels:
         y_train_path (str) : path of high res training data
         num_of_epochs (Int, optional) : number of training epochs
     """
-    def TrainModel(self,model = None,X_train_path = None , y_train_path = None, num_of_epochs = 100, checkpoint_filepath = None,existing_weights = None, load_weights = False, optimizer = None,logsdir = None, batch_size = 5, callbacks_extra = [], **args):
+    def TrainModel(self,model = None,X_train_path = None , y_train_path = None,
+     num_of_epochs = 100, checkpoint_filepath = None,
+     existing_weights = None, load_weights = False,
+     optimizer = None,logsdir = None, batch_size = 5,
+     callbacks_extra = [], **args):
         log_dir = logsdir + "/" +  datetime.now().strftime("%d_%m_%y_%H%M%S")
         tensorboard = TensorBoard(log_dir = log_dir)
         early_stop = tf.keras.callbacks.EarlyStopping(monitor='loss', patience=5)
@@ -77,13 +85,11 @@ class TrainModels:
         X_train /= 255
         data_gen = tf.keras.preprocessing.image.ImageDataGenerator(
             horizontal_flip= True,
-            vertical_flip = True,
             validation_split= 0.1,
-            dtype = tf.float32
         )
         data_gen.fit(X_train)
         self.Utils.LoadH5File(y_train_path)/255,
-        model.fit(data_gen.fit(X_train, self.Utils.LoadH5File(y_train_path)/255, batch_size = batch_size),
+        model.fit(data_gen.flow(X_train, self.Utils.LoadH5File(y_train_path)/255, batch_size = batch_size),
         epochs= num_of_epochs,
         callbacks= [tensorboard, model_checkpoint_callback] + callbacks_extra)
     
