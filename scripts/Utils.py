@@ -3,12 +3,15 @@ import cv2
 import pickle
 import numpy as np
 import h5py
+from PIL import Image, ImageEnhance
+from PIL import ImageFilter
 class Utils:
     def __init__(self):
         self.train_lr = []
         self.train_hr = []
         self.test_lr = []
         self.test_hr = []
+        self.DIV2K_RGB_MEAN = np.array([0.4488, 0.4371, 0.4040]) * 255
     
     """Reads images from a directory
 
@@ -18,13 +21,15 @@ class Utils:
     Returns:
         (numpy array) : array containing all the images in the directory
     """
-    def ReadImages(self,path):
+    def ReadImages(self,path, is_array = True):
         images = []
         for filename in os.listdir(path):
             img = cv2.imread(os.path.join(path,filename))
             if img is not None:
                 images.append(np.array(img))
-        return np.array(images)
+        if is_array:
+            return np.array(images)
+        return images
 
 
     """crops images from an array
@@ -43,9 +48,9 @@ class Utils:
                 for b in range(0,i.shape[1],crop_size):
                     image = i[a:a+crop_size,b:b+crop_size]
                     if image.shape == (crop_size,crop_size,3): 
-                        cropped_images.append(image)
+                        yield image
 
-        return (np.array(cropped_images))
+        # return (np.array(cropped_images))
 
 
     """rotates given images to given rotation
@@ -144,13 +149,14 @@ class Utils:
         suffix (str, optional) : type of file to save to. Defaults to ".h5".
         num_of_splits (int, optional) : the number of splits of data. Defaults to 5.
     """
-    def SaveInBatches(self, data, directory,prefix = "images", suffix = ".h5", num_of_splits = 5):
-        step_size = len(data) // num_of_splits
-        current_split = 1
-        for i in range(0,len(data), step_size):
-            data_sliced = data[i : i+step_size]
-            self.SaveAsH5File(data_sliced, directory + "\\" + prefix + "_" + str(current_split) + suffix )
-            current_split += 1
+    def SaveInBatches(self, length,data_gen, directory,prefix = "images", suffix = ".h5", num_of_splits = 5):
+        step_size = length // num_of_splits
+        data_sliced = []
+        for i in range(num_of_splits):
+            data_sliced.clear()
+            for _ in range(step_size):
+                data_sliced.append(next(data_gen))
+            self.SaveAsH5File(np.array(data_sliced, dtype=np.float32), directory + "\\" + prefix + "_" + str(i) + suffix , chunk_shape = (50,48,48,3))
 
 
     """shows the first images of x and y
@@ -190,12 +196,85 @@ class Utils:
     Returns:
         array with resized images
     """
-    def DownscaleImages(self, path, factor):
-        images = self.ReadImages(path)
-        downscaled_images = [self.DownscaleImage(image, factor) for image in images]
+    def DownscaleImages(self, images, factor):
+        
 
-        return np.array(downscaled_images)
+        return np.array([self.DownscaleImage(image, factor) for image in images])
+    
+    """Adds sharpen filter to given images
 
+    Args:
+        image (np array) : input image as array
+
+    Returns:
+        (array) : enhanced image in an array
+    """
+    def SharpenImage(self, image):
+        x = (image * 255).astype(np.uint8)
+        x = Image.fromarray(x)
+        enhancer = ImageEnhance.Sharpness(x)
+        return enhancer.enhance(3)
+    
+
+    """Reverses the colors of given images
+
+    Args:
+        image (np array) : array of input image
+
+    Returns:
+        (array) : image with reversed colors
+    """
+    def ReverseColors(self,image, reverse_type = cv2.COLOR_BGR2RGB):
+        return np.array(cv2.cvtColor(np.float32(image), reverse_type))
+
+
+    """Adds noise to an array of images
+
+    Args:
+        images (array) : array of images
+        noise (float) : noise factor
+
+    Returns:
+        (array) : images with added noise
+    """    
+    def AddNoise(self, images, noise = 0.1):
+        noisy_array = (images/255) + noise * np.random.normal(
+            loc=0.0, scale=1.0, size=images.shape
+        )
+
+        return np.clip(noisy_array, 0.0, 1.0) * 255
+    
+    def BlurrImages(self, images):
+        return np.array([cv2.blur(img,(5,5)) for img in images])
+    
+    def SmoothImage(self, image):
+        x = (image * 255).astype(np.uint8)
+        x = Image.fromarray(x)
+        return x.filter(ImageFilter.SMOOTH_MORE)
+    
+    def Upscale(self, images, factor = 2):
+        return np.array([cv2.resize(img,(img.shape[1] * factor, img.shape[0] * factor)) for img in images])
+
+    def normalize(self, x):
+        return (x - self.DIV2K_RGB_MEAN) / 127.5
+
+
+    def denormalize(self, x):
+        return x * 127.5 + self.DIV2K_RGB_MEAN
 if __name__ == "__main__":
     test = Utils()
-    test.SaveAsH5File(test.DownscaleImages(r"D:\HBO\MinorAi\1m_faces_00_01_02_03\1m_faces_01", 64), r"D:\HBO\MinorAi\PickleFiles\X_train_faces_2.h5", chunk_shape=(200,16,16,3))
+    #test.SaveAsH5File(test.Upscale(test.DownscaleImages(test.LoadH5File(r"D:\HBO\MinorAi\PickleFiles\train_lr.h5"), factor = 4), factor = 4), r"D:\HBO\MinorAi\PickleFiles\train_lr_bicubic.h5")
+    # x = test.LoadH5File(r"D:\HBO\MinorAi\PickleFiles\train_lr_bicubic.h5")
+    # print(x[0].shape)
+    # cv2.imshow("image", x[4] / 255)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+
+    # x = test.ReadImages(r"D:\HBO\MinorAi\test")
+    # img = test.GetCroppedImages(x,64*4)
+    # cv2.imshow("img", img[13])
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    # cv2.imwrite(r"D:\HBO\MinorAi\test" + "\\cropped.png", img[13])
+    images = test.ReadImages(r"D:\HBO\MinorAi\Div2kx4\train_lr", is_array = False)
+    test.SaveInBatches(49520,test.GetCroppedImages(images, 48), r"D:\HBO\MinorAi\PickleFiles", prefix = "X_train_lr")
