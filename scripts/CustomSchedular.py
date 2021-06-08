@@ -1,4 +1,5 @@
 import tensorflow as tf
+
 class CustomLearningRateScheduler(tf.keras.callbacks.Callback):
     """Learning rate scheduler which sets the learning rate according to schedule.
 

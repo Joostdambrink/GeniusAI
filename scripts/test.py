@@ -9,6 +9,7 @@ from PIL import ImageEnhance
 from Utils import Utils
 from Models import SuperResModels
 import os
+
 class TestModels:
     def __init__(self):
         self.Utils = Utils()
@@ -97,7 +98,7 @@ class TestModels:
     def PlotAndSave(self,model,lr_path, hr_path, save_path, save_output = True):
         hr = cv2.cvtColor(np.array(Image.open(hr_path)), cv2.COLOR_BGRA2BGR)
         lr = cv2.cvtColor(np.array(Image.open(lr_path)), cv2.COLOR_BGRA2BGR)
-        sr = test_model.resolve_single(model, lr / 255)
+        sr = self.resolve_single(model, lr / 255)
         img = Image.fromarray(np.array(sr))
         enhancer = ImageEnhance.Contrast(img)
         img = enhancer.enhance(1.25)
@@ -105,20 +106,5 @@ class TestModels:
         img = enhancer.enhance(1.3)
         if save_output:
             Image.fromarray(np.array(sr)).save(save_path)
-        test_model.plot_sample(lr,sr, img, hr)
-
-
-if __name__ == '__main__':
-    test_model = TestModels()
-    models = SuperResModels()
-    start = time.time()
-    model = test_model.loadModel("super_res_denoiser", is_custom= True)
-    lr_path = r"D:\HBO\MinorAi\Set14_SR\lr"
-    hr_path = r"D:\HBO\MinorAi\Set14_SR\hr"
-    save_path = r"D:\HBO\MinorAi\validation\\"
-    lr_files = os.listdir(lr_path)
-    hr_files = os.listdir(hr_path)
-    for lr_file,hr_file in zip(lr_files,hr_files):
-        test_model.PlotAndSave(model,os.path.join(lr_path,lr_file), os.path.join(hr_path,hr_file), os.path.join(save_path,lr_file), save_output= True)
-
+        self.plot_sample(lr,sr, img, hr)
 
