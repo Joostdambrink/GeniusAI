@@ -276,5 +276,22 @@ if __name__ == "__main__":
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
     # cv2.imwrite(r"D:\HBO\MinorAi\test" + "\\cropped.png", img[13])
-    images = test.ReadImages(r"D:\HBO\MinorAi\Div2kx4\train_lr", is_array = False)
-    test.SaveInBatches(49520,test.GetCroppedImages(images, 48), r"D:\HBO\MinorAi\PickleFiles", prefix = "X_train_lr")
+    images_lr = test.ReadImages(r"D:\HBO\MinorAi\validation\lr", is_array = False)
+    imgs_lr = test.GetCroppedImages(images_lr, 64)
+    images_hr = test.ReadImages(r"D:\HBO\MinorAi\validation\hr", is_array = False)
+    imgs_hr = test.GetCroppedImages(images_hr, 256)
+    # for count,lr in enumerate(imgs_hr):
+    #     print(count)
+    #     cv2.imshow("image", lr)
+    #     cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    indexes = [10,31,52,65,67,122,164,171,201,250]
+    x = 0
+    for count,lr in enumerate(imgs_lr):
+        if count in indexes:
+            cv2.imwrite(r"D:\HBO\MinorAi\validation\lr_cropped\{}.png".format(count), lr)
+
+    for count,hr in enumerate(imgs_hr):
+        if count in indexes:
+            print(count)
+            cv2.imwrite(r"D:\HBO\MinorAi\validation\hr_cropped\{}.png".format(count),hr)
