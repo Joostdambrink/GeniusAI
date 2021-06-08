@@ -3,12 +3,11 @@ import tensorflow as tf
 class CustomLearningRateScheduler(tf.keras.callbacks.Callback):
     """Learning rate scheduler which sets the learning rate according to schedule.
 
-  Arguments:
-      schedule: a function that takes an epoch index
-          (integer, indexed from 0) and current learning rate
-          as inputs and returns a new learning rate as output (float).
-  """
-
+    Args:
+        schedule: a function that takes an epoch index
+            (integer, indexed from 0) and current learning rate
+            as inputs and returns a new learning rate as output (float).
+    """
     def __init__(self, schedule):
         super(CustomLearningRateScheduler, self).__init__()
         self.schedule = schedule

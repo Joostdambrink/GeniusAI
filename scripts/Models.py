@@ -4,6 +4,7 @@ from ResidualBlock import ResidualBlock
 from Utils import Utils
 from CustomLayers import DownSample, UpSample
 
+
 class SuperResModels:
     def __init__(self):
         self.Utils = Utils()

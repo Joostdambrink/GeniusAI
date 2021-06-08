@@ -1,7 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras.layers import Permute, Conv2D
 import numpy as np
-
 class PixelUnshuffle(tf.keras.layers.Layer):
     def __init__(self, scale, array_shape = (1,96,96,32), parent_name = ""):
         super(PixelUnshuffle, self).__init__()
