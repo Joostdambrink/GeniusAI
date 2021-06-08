@@ -1,8 +1,9 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Conv2D, UpSampling2D,Input,LeakyReLU,Add,BatchNormalization,MaxPool2D, Lambda
+from tensorflow.keras.layers import Conv2D, UpSampling2D,Input,LeakyReLU,Add,BatchNormalization,MaxPool2D, Lambda, PReLU
 from ResidualBlock import ResidualBlock
 from Utils import Utils
 from CustomLayers import DownSample, UpSample
+
 
 class SuperResModels:
     def __init__(self):
@@ -28,33 +29,40 @@ class SuperResModels:
     """
     def Model(self):
         conv_args = {
-            "activation": LeakyReLU(),
+            "activation" : LeakyReLU(alpha = 0.2),
             "kernel_initializer": "Orthogonal",
             "padding": "same",
         }
         rb = ResidualBlock()
         inputs = Input(shape=[None,None,3])
         c1 = Conv2D(64,5,input_shape = (None,None,3),**conv_args)(inputs)
+        pr1 = res = PReLU(alpha_initializer=tf.keras.initializers.Constant(value=0.25),shared_axes=[1,2])(c1)
+        for _ in range(24):
+            res = Conv2D(64,(2,2),padding="same")(res)
+            res = PReLU(alpha_initializer=tf.keras.initializers.Constant(value=0.25),shared_axes=[1,2])(res)
+            res = Conv2D(64,(2,2),padding = "same")(res)
 
-        resUnit = rb.ResBlock(c1,num_of_units = 32)
+        add1 = Add()([pr1,res])
+        c2 = Conv2D(64,4,**conv_args)(add1)
         
-        add1 = Add()([c1,resUnit])
-        leaky = LeakyReLU()(add1)
-        c2 = Conv2D(64,5,**conv_args)(leaky)
+        c3 = Conv2D(64,4,**conv_args)(c2)
+        act = PReLU(alpha_initializer=tf.keras.initializers.Constant(value=0.25),shared_axes=[1,2])(c3)
+        c4 = Conv2D(64,4,**conv_args)(act)
 
-        c3 = Conv2D(64,5,**conv_args)(c2)
-        c4 = Conv2D(64,5,**conv_args)(c3)
+        c5 = Conv2D(64,3,**conv_args)(c4)
+        act = PReLU(alpha_initializer=tf.keras.initializers.Constant(value=0.25),shared_axes=[1,2])(c5)
 
-        c5 = Conv2D(64,5,**conv_args)(c4)
+        up1 = UpSampling2D(size = (2,2),interpolation = "nearest")(act)
+        c6 = Conv2D(64,2, padding = "same")(up1)
+        act = LeakyReLU(alpha = 0.2)(c6)
+        up2 = UpSampling2D(size = (2,2), interpolation="nearest")(act)
+        c7 = Conv2D(64,2,**conv_args)(up2)
+        act = LeakyReLU(alpha = 0.2)(c7)
 
-        up1 = UpSampling2D(size = (2,2),interpolation = "nearest")(c5)
-        c6 = Conv2D(64,5,**conv_args)(up1)
-        up2 = UpSampling2D(size = (2,2), interpolation="nearest")(c6)
-        c7 = Conv2D(64,5,**conv_args)(up2)
-
-        c8 = Conv2D(64,3,**conv_args)(c7)
-        c9 = Conv2D(64,3,**conv_args)(c8)
-        c10 = Conv2D(3,3,**conv_args)(c9)
+        c8 = Conv2D(64,2,**conv_args)(act)
+        c9 = Conv2D(64,2,**conv_args)(c8)
+        act = PReLU(alpha_initializer=tf.keras.initializers.Constant(value=0.25),shared_axes=[1,2])(c9)
+        c10 = Conv2D(3,2,**conv_args)(act)
 
         return tf.keras.Model(inputs = inputs, outputs = c10)
 
