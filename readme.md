@@ -16,9 +16,12 @@ An CNN Model used for enhancing the resolution on images.
 
 Our Model requires Python to run
 
-Download the dependencies by running the scripts/setup.py file
+Download the dependencies with:
+```sh
+python setup.py
+```
 
-To run our program open the terminal and use the following command
+To run our program open the terminal use:
 ```sh
 python run.py --lr_path <path> --hr_path <path> --save_path <path>
 ```
