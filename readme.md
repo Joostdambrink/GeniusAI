@@ -30,3 +30,7 @@ python run.py --lr_path <path> --hr_path <path> --save_path <path>
 | --lr_path | Path where the low-res images are stored |
 | --hr_path | Path where the high-res images are stored |
 | --save_path | Path where the results are stored |
+
+### EDSR
+
+![result-edsr](images/edsr-result.png)
