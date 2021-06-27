@@ -30,45 +30,6 @@ class TestModels:
 
     def L1Loss(self, y_true,y_pred):
         return abs(y_true - y_pred)
-    """Predicts and shows input and prediction images
-
-    Args:
-        model (keras model) : keras model that does the prediction
-        data_path (str) : path of the input data
-        read_from_directory (bool, optional) : whether to read images from a directory or from a file. defaults to False
-    """
-    def PredictAndShowImage(self, model, data_path, read_from_directory = False):
-        data = []
-        if read_from_directory:
-            data = self.Utils.ReadImages(data_path)
-        else:
-            data = self.Utils.LoadH5File(data_path)
-        data = data/255
-        image = np.expand_dims(data[0], axis = 0)
-        pred = model.predict(image)
-        denoiser = self.loadModel('denoiser', is_custom = False)
-        denoised = denoiser.predict(pred)
-        original_denoise = denoiser.predict(image)
-        # cv2.imwrite(r"D:\HBO\MinorAi\test\prediction.png", pred[0]/255)
-        # cv2.imwrite(r"D:\HBO\MinorAi\test\denoised.png", denoised[0]*255)
-        # cv2.imwrite(r"D:\HBO\MinorAi\test\denoised_original.png", original_denoise[0]*255)
-        # cv2.imwrite(r"D:\HBO\MinorAi\test\bicubic.png", cv2.resize(image[0], (pred[0].shape[1],pred[0].shape[0]), interpolation=cv2.INTER_CUBIC)*255)
-        # cv2.imwrite(r"D:\HBO\MinorAi\test\scaling_2x.png", cv2.resize(pred[0], (pred[0].shape[1]//2,pred[0].shape[0]//2), interpolation=cv2.INTER_CUBIC)*255)
-        # cv2.imwrite(r"D:\HBO\MinorAi\test\sharp.png", np.float32(self.Utils.SharpenImage(pred[0])))
-        # cv2.imwrite(r"D:\HBO\MinorAi\test\sharp_denoise.png", np.float32(self.Utils.SharpenImage(denoised[0])))
-        # cv2.imwrite(r"D:\HBO\MinorAi\test\smooth.png", np.float32(self.Utils.SmoothImage(pred[0])))
-        images = [ ("prediction", self.Utils.ReverseColors(pred[0] / 255)), ("after sharpening", self.Utils.SharpenImage(self.Utils.ReverseColors(pred[0]))), ("denoised", self.Utils.ReverseColors(denoised[0])), ("upscaled bicubic", self.Utils.ReverseColors(cv2.resize(image[0], (pred[0].shape[1],pred[0].shape[0]), interpolation=cv2.INTER_CUBIC)))]
-        rows = 1
-        cols = 4
-        axes=[]
-        fig=plt.figure()
-        for a in range(rows*cols):
-            axes.append( fig.add_subplot(rows, cols, a+1) )
-            axes[-1].set_title(images[a][0]) 
-            plt.imshow(images[a][1])
-
-        fig.tight_layout()    
-        plt.show()
     
     def resolve_single(self,model, lr):
         return self.resolve(model, tf.expand_dims(lr, axis=0))[0]
