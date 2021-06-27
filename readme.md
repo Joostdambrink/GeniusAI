@@ -35,14 +35,14 @@ python run.py --lr_path <path> --hr_path <path> --save_path <path>
 #### Architecture
 ![arch_edsr](images/super_res_edsr.png)
 #### EDSR Results
-![result_edsr](images/results/edsr.png)
+![result_edsr](images/results/edsr.PNG)
 
 
 ### Our model
 #### Architecture
 ![arch_model](images/super_res_model_scheme.png)
 #### Out model Results
-![result_model](images/results/model_resultPNG.png)
+![result_model](images/results/model_resultPNG.PNG)
 
 
 ### Our model + denoiser
