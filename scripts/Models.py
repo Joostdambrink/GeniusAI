@@ -131,13 +131,13 @@ class SuperResModels:
         inputs = Input(shape=[None,None,3], batch_size=None)
         norm = Lambda(self.Utils.normalize)(inputs)
 
-        c1  = res_block = Conv2D(256, 3, padding = "same")(norm)
-        res_block = rb.ResBlock(res_block,num_of_blocks = 16, num_of_filters=256, residual_scaling = 0.1)
-        res_block = Conv2D(256, 3, padding='same')(res_block)
+        c1  = res_block = Conv2D(64, 3, padding = "same")(norm)
+        res_block = rb.ResBlock(res_block,num_of_blocks = 16, num_of_filters=64, residual_scaling = 0.1)
+        res_block = Conv2D(64, 3, padding='same')(res_block)
         added = Add()([c1, res_block])
 
-        upsample = UpSample(2,256)(added)
-        upsample = UpSample(2,256)(upsample)
+        upsample = UpSample(2,64)(added)
+        upsample = UpSample(2,64)(upsample)
         c3 = Conv2D(3, 3,padding = "same")(upsample)
         
         outputs = Lambda(self.Utils.denormalize)(c3)

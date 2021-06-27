@@ -11,7 +11,6 @@ args = parser.parse_args()
 if __name__ == '__main__':
     test_model = TestModels()
     models = SuperResModels()
-    start = time.time()
     model = test_model.loadModel(str(os.path.abspath("../super_res_denoiser")), is_custom= True)
     lr_path = args.lr_path
     hr_path = args.hr_path
