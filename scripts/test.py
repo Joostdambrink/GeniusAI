@@ -95,6 +95,7 @@ class TestModels:
             plt.yticks([])
             plt.imshow(img)
         plt.show()
+        
     def PlotAndSave(self,model,lr_path, hr_path, save_path, save_output = True):
         hr = cv2.cvtColor(np.array(Image.open(hr_path)), cv2.COLOR_BGRA2BGR)
         lr = cv2.cvtColor(np.array(Image.open(lr_path)), cv2.COLOR_BGRA2BGR)
@@ -107,4 +108,3 @@ class TestModels:
         if save_output:
             Image.fromarray(np.array(sr)).save(save_path)
         self.plot_sample(lr,sr, img, hr)
-
