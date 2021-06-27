@@ -52,7 +52,7 @@ python run.py --lr_path <path> --hr_path <path> --save_path <path>
 ![result_edsr](images/results/model_denoiser.PNG)
 
 
-#Refereces
+# Refereces
 https://arxiv.org/pdf/1707.02921.pdf
 https://arxiv.org/pdf/1907.12904v2.pdf
 https://github.com/krasserm/super-resolution
