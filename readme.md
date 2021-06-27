@@ -32,5 +32,21 @@ python run.py --lr_path <path> --hr_path <path> --save_path <path>
 | --save_path | Path where the results are stored |
 
 ### EDSR
+#### Architecture
+![arch_edsr](images/super_res_edsr.png)
+#### EDSR Results
+![result_edsr](images/results/edsr.png)
 
-![result-edsr](images/edsr-result.png)
+
+### Our model
+#### Architecture
+![arch_model](images/super_res_model_scheme.png)
+#### Out model Results
+![result_model](images/results/model_resultPNG.png)
+
+
+### Our model + denoiser
+#### Architecture
+![arch_edsr](images/model_denoiser.png)
+#### Our model + denoiser Results
+![result_edsr](images/results/model_denoiser.png)
