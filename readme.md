@@ -5,7 +5,7 @@ An CNN Model used for enhancing the resolution on images.
 
 - [Features](#Features)
 - [Installation](#Installation)
-- 
+- [References](#References)
 
 ## Features
 
