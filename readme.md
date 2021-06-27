@@ -49,4 +49,4 @@ python run.py --lr_path <path> --hr_path <path> --save_path <path>
 #### Architecture
 ![arch_edsr](images/model_denoiser.png)
 #### Our model + denoiser Results
-![result_edsr](images/results/model_denoiser.png)
+![result_edsr](images/results/model_denoiser.PNG)
